@@ -40,7 +40,7 @@ export async function GET(request: NextRequest) {
       andConditions.push({
         user: {
           OR: [
-            { employeeId: { contains: search, mode: "insensitive" } },
+            { loginId: { contains: search, mode: "insensitive" } },
             { email: { contains: search, mode: "insensitive" } },
             { profile: { fullName: { contains: search, mode: "insensitive" } } },
           ],
@@ -70,7 +70,7 @@ export async function GET(request: NextRequest) {
           user: {
             select: {
               id: true,
-              employeeId: true,
+              loginId: true,
               email: true,
               profile: {
                 select: {

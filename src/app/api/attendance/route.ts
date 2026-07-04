@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
         user: {
           OR: [
             {
-              employeeId: {
+              loginId: {
                 contains: search,
                 mode: "insensitive",
               },
@@ -95,7 +95,7 @@ export async function GET(request: NextRequest) {
           status: true,
           user: {
             select: {
-              employeeId: true,
+              loginId: true,
               profile: {
                 select: {
                   fullName: true,

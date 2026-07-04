@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         user: {
           select: {
             id: true,
-            employeeId: true,
+            loginId: true,
             email: true,
             profile: { select: { fullName: true, jobTitle: true, department: true } },
           },
@@ -110,7 +110,7 @@ export async function GET(request: NextRequest) {
 
     // ── Employee Info ──
     const employeeName = salary.user.profile?.fullName || "N/A";
-    const empId = salary.user.employeeId;
+    const empId = salary.user.loginId;
     const department = salary.user.profile?.department || "N/A";
     const payPeriod = salary.effectiveDate.toLocaleDateString("en-US", {
       month: "long",

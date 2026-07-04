@@ -1,5 +1,6 @@
 import { PrismaClient, Role, AttendanceStatus, LeaveType, LeaveStatus } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { deriveCompanyInitials, buildLoginId, parseFullName } from '../src/lib/login-id';
 
 const prisma = new PrismaClient();
 
@@ -35,32 +36,75 @@ async function main() {
   await prisma.refreshToken.deleteMany({});
   await prisma.verificationToken.deleteMany({});
   await prisma.user.deleteMany({});
+  await prisma.companyJoinSequence.deleteMany({});
+  await prisma.company.deleteMany({});
   console.log('✅ Database cleared.\n');
 
   const hashedPassword = await bcrypt.hash('password123', 10);
+  const currentYear = new Date().getFullYear();
+
+  // ==========================================
+  // 0. COMPANY
+  // ==========================================
+  const companyName = 'WorkFrame Inc.';
+  const companyInitials = deriveCompanyInitials(companyName);
+
+  const company = await prisma.company.create({
+    data: {
+      name: companyName,
+      initials: companyInitials,
+    },
+  });
+  console.log(`✅ Company "${companyName}" created (initials: ${companyInitials}).`);
+
+  // Initialize join sequence for current year
+  await prisma.companyJoinSequence.create({
+    data: {
+      companyId: company.id,
+      year: currentYear,
+      lastSerial: 0,
+    },
+  });
+
+  // Helper to get next serial for a company/year
+  let serialCounter = 0;
+  async function getNextSerial(): Promise<number> {
+    serialCounter++;
+    await prisma.companyJoinSequence.update({
+      where: { companyId_year: { companyId: company.id, year: currentYear } },
+      data: { lastSerial: serialCounter },
+    });
+    return serialCounter;
+  }
 
   // ==========================================
   // 1. ADMINS (2)
   // ==========================================
   const adminData = [
-    { id: 'ADM-001', name: 'Spandan Dhar', title: 'HR Director', email: 'spandan@workframe.com' },
-    { id: 'ADM-002', name: 'Sarah Jenkins', title: 'HR Operations Manager', email: 'sarah@workframe.com' },
+    { name: 'Spandan Dhar', title: 'HR Director', email: 'spandan@workframe.com' },
+    { name: 'Sarah Jenkins', title: 'HR Operations Manager', email: 'sarah@workframe.com' },
   ];
 
   const admins: Awaited<ReturnType<typeof prisma.user.create>>[] = [];
   for (const a of adminData) {
+    const serial = await getNextSerial();
+    const [firstName, lastName] = parseFullName(a.name);
+    const loginId = buildLoginId(companyInitials, firstName, lastName, currentYear, serial);
+
     const user = await prisma.user.create({
       data: {
-        employeeId: a.id,
+        loginId,
         email: a.email,
         passwordHash: hashedPassword,
         role: Role.ADMIN,
+        companyId: company.id,
         emailVerified: true,
+        mustChangePassword: false,
         profile: {
           create: {
             fullName: a.name,
-            phone: `555-010-${a.id.slice(-3)}`,
-            address: `${100 + parseInt(a.id.slice(-1))} Corporate Blvd, Suite 200`,
+            phone: `555-010-${String(serial).padStart(3, '0')}`,
+            address: `${100 + serial} Corporate Blvd, Suite 200`,
             jobTitle: a.title,
             department: 'Human Resources',
           },
@@ -68,6 +112,7 @@ async function main() {
       },
     });
     admins.push(user);
+    console.log(`   Admin: ${a.name} → Login ID: ${loginId}`);
   }
   console.log('✅ 2 Admin accounts seeded.');
 
@@ -98,21 +143,27 @@ async function main() {
 
   const employees: Awaited<ReturnType<typeof prisma.user.create>>[] = [];
   for (let i = 0; i < 20; i++) {
-    const empId = `EMP-${String(i + 1).padStart(3, '0')}`;
     const dept = departments[i % departments.length];
     const titles = jobTitlesByDept[dept] || ['Specialist'];
     const title = titles[i % titles.length];
+    const fullName = `${firstNames[i]} ${lastNames[i]}`;
+
+    const serial = await getNextSerial();
+    const [firstName, lastName] = parseFullName(fullName);
+    const loginId = buildLoginId(companyInitials, firstName, lastName, currentYear, serial);
 
     const user = await prisma.user.create({
       data: {
-        employeeId: empId,
+        loginId,
         email: `${firstNames[i].toLowerCase()}.${lastNames[i].toLowerCase()}@workframe.com`,
         passwordHash: hashedPassword,
         role: Role.EMPLOYEE,
+        companyId: company.id,
         emailVerified: true,
+        mustChangePassword: false,
         profile: {
           create: {
-            fullName: `${firstNames[i]} ${lastNames[i]}`,
+            fullName,
             phone: `555-020-${String(i + 1).padStart(4, '0')}`,
             address: `${200 + i} Innovation Drive, Apt ${i + 1}`,
             jobTitle: title,
@@ -233,8 +284,6 @@ async function main() {
     'Please provide additional documentation.',
     'Approved with noted reason.',
     'Rejected due to project deadline.',
-    null,
-    null,
   ];
 
   const leaveRequests: {
@@ -266,11 +315,11 @@ async function main() {
       status = LeaveStatus.PENDING;
     } else if (statusRand < 0.7) {
       status = LeaveStatus.APPROVED;
-      reviewerComment = randomItem(reviewerComments.filter(Boolean));
+      reviewerComment = randomItem(reviewerComments);
       reviewedBy = randomItem(admins).id;
     } else {
       status = LeaveStatus.REJECTED;
-      reviewerComment = randomItem(reviewerComments.filter(Boolean));
+      reviewerComment = randomItem(reviewerComments);
       reviewedBy = randomItem(admins).id;
     }
 
@@ -383,6 +432,7 @@ async function main() {
   // ==========================================
   console.log('\n🚀 Seeding complete!\n');
   console.log('   Summary:');
+  console.log(`   - 1 company (${companyName}, initials: ${companyInitials})`);
   console.log(`   - ${admins.length} admins`);
   console.log(`   - ${employees.length} employees`);
   console.log(`   - ${docCount.count} documents`);
@@ -392,7 +442,8 @@ async function main() {
   console.log(`   - ${notifs.length} notifications`);
   console.log(`   - ${auditLogs.length} audit logs`);
   console.log('\n   Login password for all accounts: password123');
-  console.log('\n   Admin emails: spandan@workframe.com, sarah@workframe.com');
+  console.log(`   Company initials: ${companyInitials}`);
+  console.log('   Admin emails: spandan@workframe.com, sarah@workframe.com');
   console.log('   Employee emails: {firstname}.{lastname}@workframe.com');
 }
 

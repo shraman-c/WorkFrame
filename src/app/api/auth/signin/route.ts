@@ -30,16 +30,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { email, password } = parsed.data;
+    const { loginIdOrEmail, password } = parsed.data;
 
-    // Find user by email
-    const user = await prisma.user.findUnique({
-      where: { email },
+    // Find user by loginId OR email
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { loginId: loginIdOrEmail },
+          { email: loginIdOrEmail },
+        ],
+      },
     });
 
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -48,7 +53,7 @@ export async function POST(request: NextRequest) {
     const passwordValid = await bcrypt.compare(password, user.passwordHash);
     if (!passwordValid) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { error: "Invalid credentials" },
         { status: 401 }
       );
     }
@@ -69,6 +74,8 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       role: user.role as "EMPLOYEE" | "ADMIN",
+      loginId: user.loginId,
+      companyId: user.companyId,
     };
 
     // Issue tokens
@@ -98,7 +105,8 @@ export async function POST(request: NextRequest) {
           id: user.id,
           email: user.email,
           role: user.role,
-          employeeId: user.employeeId,
+          loginId: user.loginId,
+          companyId: user.companyId,
         },
       },
       { status: 200 }

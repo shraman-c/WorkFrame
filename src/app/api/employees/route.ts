@@ -39,7 +39,7 @@ export async function GET(request: NextRequest) {
       andConditions.push({
         OR: [
           {
-            employeeId: {
+            loginId: {
               contains: search,
               mode: "insensitive",
             },
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
         take: pageSize,
         select: {
           id: true,
-          employeeId: true,
+          loginId: true,
           email: true,
           role: true,
           emailVerified: true,

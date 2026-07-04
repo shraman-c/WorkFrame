@@ -42,7 +42,7 @@ export async function GET(request: NextRequest) {
           createdAt: true,
           user: {
             select: {
-              employeeId: true,
+              loginId: true,
               profile: { select: { fullName: true } },
             },
           },
@@ -66,7 +66,7 @@ export async function GET(request: NextRequest) {
         createdAt: true,
         user: {
           select: {
-            employeeId: true,
+            loginId: true,
             profile: { select: { fullName: true } },
           },
         },
@@ -110,7 +110,7 @@ export async function POST(request: NextRequest) {
     // Verify the employee exists
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
-      select: { id: true, employeeId: true },
+      select: { id: true, loginId: true },
     });
 
     if (!employee) {

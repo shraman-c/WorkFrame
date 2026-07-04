@@ -4,9 +4,15 @@ import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validation";
 import { isRateLimited } from "@/lib/rate-limit";
+import { deriveCompanyInitials, buildLoginId, parseFullName } from "@/lib/login-id";
 
 const SALT_ROUNDS = 12;
 
+/**
+ * POST /api/auth/signup
+ * Creates a COMPANY record + its first ADMIN user.
+ * This is NOT an employee registration — only company admins register here.
+ */
 export async function POST(request: NextRequest) {
   try {
     const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
@@ -30,49 +36,88 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { employeeId, email, password } = parsed.data;
-    // Role is always EMPLOYEE at signup. Admin accounts are created by existing admins.
-    const role = "EMPLOYEE" as const;
+    const { companyName, name, email, phone, password } = parsed.data;
 
-    // Check for existing user by email or employeeId
-    const existingUser = await prisma.user.findFirst({
-      where: {
-        OR: [{ email }, { employeeId }],
-      },
-      select: { email: true, employeeId: true },
+    // Check for existing user by email
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { email: true },
     });
 
     if (existingUser) {
-      const field =
-        existingUser.email === email ? "email" : "employee ID";
       return NextResponse.json(
-        { error: `A user with this ${field} already exists` },
+        { error: "A user with this email already exists" },
         { status: 409 }
+      );
+    }
+
+    // Derive company initials
+    const companyInitials = deriveCompanyInitials(companyName);
+    if (companyInitials.length === 0) {
+      return NextResponse.json(
+        { error: "Could not derive company initials from the company name" },
+        { status: 400 }
       );
     }
 
     // Hash password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create user with empty profile in a transaction
-    const user = await prisma.$transaction(async (tx) => {
-      const newUser = await tx.user.create({
+    const currentYear = new Date().getFullYear();
+    const [firstName, lastName] = parseFullName(name);
+
+    // Create company, join sequence, user, and profile in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Create the company
+      const company = await tx.company.create({
         data: {
-          employeeId,
+          name: companyName,
+          initials: companyInitials,
+        },
+      });
+
+      // 2. Initialize the join sequence for this year (lastSerial starts at 0)
+      const joinSeq = await tx.companyJoinSequence.create({
+        data: {
+          companyId: company.id,
+          year: currentYear,
+          lastSerial: 0,
+        },
+      });
+
+      // 3. Atomically increment the serial counter and use the result
+      const updatedSeq = await tx.companyJoinSequence.update({
+        where: { id: joinSeq.id },
+        data: { lastSerial: { increment: 1 } },
+      });
+      const serial = updatedSeq.lastSerial;
+
+      // 4. Build the Login ID using the atomically generated serial
+      const loginId = buildLoginId(companyInitials, firstName, lastName, currentYear, serial);
+
+      // 4. Create the first admin user
+      const user = await tx.user.create({
+        data: {
+          loginId,
           email,
           passwordHash,
-          role,
+          role: "ADMIN",
+          companyId: company.id,
+          mustChangePassword: false,
+          emailVerified: false,
         },
       });
 
+      // 5. Create employee profile
       await tx.employeeProfile.create({
         data: {
-          userId: newUser.id,
-          fullName: "",
+          userId: user.id,
+          fullName: name,
+          phone: phone || null,
         },
       });
 
-      return newUser;
+      return { company, user, loginId };
     });
 
     // Generate single-use verification token (24h expiry)
@@ -82,14 +127,13 @@ export async function POST(request: NextRequest) {
 
     await prisma.verificationToken.create({
       data: {
-        userId: user.id,
+        userId: result.user.id,
         token,
         expiresAt,
       },
     });
 
     // TODO: Replace with real email service (SendGrid / SES / Postmark)
-    // For now, log the token so devs can verify manually
     console.log(
       `\n[WorkFrame] Email verification token for ${email}:\n${token}\n`
     );
@@ -97,8 +141,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       {
         message:
-          "Account created successfully. Please check your email to verify your account.",
-        userId: user.id,
+          `Account created successfully. Your Login ID is: ${result.loginId}. Please check your email to verify your account.`,
+        userId: result.user.id,
+        loginId: result.loginId,
       },
       { status: 201 }
     );

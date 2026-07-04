@@ -2,12 +2,21 @@ import { z } from "zod";
 
 // ─── Auth ────────────────────────────────────────────────────────────────────
 
+/**
+ * Sign Up schema — creates a COMPANY record + its first ADMIN user.
+ * The company initials are derived server-side from companyName.
+ */
 export const signupSchema = z.object({
-  employeeId: z
+  companyName: z
     .string()
-    .min(1, "Employee ID is required")
-    .max(50, "Employee ID must be at most 50 characters"),
+    .min(1, "Company name is required")
+    .max(200, "Company name must be at most 200 characters"),
+  name: z
+    .string()
+    .min(1, "Name is required")
+    .max(200, "Name must be at most 200 characters"),
   email: z.string().email("Invalid email address"),
+  phone: z.string().max(20, "Phone must be at most 20 characters").optional(),
   password: z
     .string()
     .min(8, "Password must be at least 8 characters")
@@ -18,11 +27,17 @@ export const signupSchema = z.object({
       /[^A-Za-z0-9]/,
       "Password must contain at least one special character"
     ),
-  // Role is always EMPLOYEE at signup. Admin accounts are created by existing admins.
+  confirmPassword: z.string().min(1, "Please confirm your password"),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords do not match",
+  path: ["confirmPassword"],
 });
 
+/**
+ * Sign In schema — accepts either loginId or email.
+ */
 export const signinSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  loginIdOrEmail: z.string().min(1, "Login ID or Email is required"),
   password: z.string().min(1, "Password is required"),
 });
 

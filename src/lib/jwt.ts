@@ -9,6 +9,8 @@ export interface JwtPayload {
   id: string;
   email: string;
   role: "EMPLOYEE" | "ADMIN";
+  loginId?: string;
+  companyId?: string;
 }
 
 export function signAccessToken(payload: JwtPayload): string {

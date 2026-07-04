@@ -52,7 +52,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Verify the employee exists
     const employee = await prisma.user.findUnique({
       where: { id: employeeId },
-      select: { id: true, employeeId: true },
+      select: { id: true, loginId: true },
     });
 
     if (!employee) {

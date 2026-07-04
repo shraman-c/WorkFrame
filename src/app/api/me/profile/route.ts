@@ -17,7 +17,7 @@ export async function GET(request: NextRequest) {
       where: { id: user.id },
       select: {
         id: true,
-        employeeId: true,
+        loginId: true,
         email: true,
         role: true,
         createdAt: true,

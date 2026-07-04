@@ -14,14 +14,22 @@ interface User {
   id: string;
   email: string;
   role: "EMPLOYEE" | "ADMIN";
-  employeeId: string;
+  loginId: string;
+  companyId: string;
 }
 
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  signin: (email: string, password: string) => Promise<void>;
-  signup: (employeeId: string, email: string, password: string) => Promise<string>;
+  signin: (loginIdOrEmail: string, password: string) => Promise<void>;
+  signup: (data: {
+    companyName: string;
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword: string;
+  }) => Promise<string>;
   verifyEmail: (token: string) => Promise<void>;
   signout: () => Promise<void>;
 }
@@ -43,7 +51,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: payload.id,
               email: payload.email,
               role: payload.role,
-              employeeId: payload.employeeId || "",
+              loginId: payload.loginId || "",
+              companyId: payload.companyId || "",
             });
             setLoading(false);
             return;
@@ -70,11 +79,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     initializeAuth();
   }, []);
 
-  const signin = useCallback(async (email: string, password: string) => {
+  const signin = useCallback(async (loginIdOrEmail: string, password: string) => {
     const res = await fetch("/api/auth/signin", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ loginIdOrEmail, password }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Sign-in failed");
@@ -82,11 +91,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(data.user);
   }, []);
 
-  const signup = useCallback(async (employeeId: string, email: string, password: string) => {
+  const signup = useCallback(async (signupData: {
+    companyName: string;
+    name: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword: string;
+  }) => {
     const res = await fetch("/api/auth/signup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ employeeId, email, password }),
+      body: JSON.stringify(signupData),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Signup failed");

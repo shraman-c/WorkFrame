@@ -28,7 +28,8 @@ export async function POST(request: NextRequest) {
             id: true,
             email: true,
             role: true,
-            employeeId: true,
+            loginId: true,
+            companyId: true,
           },
         },
       },
@@ -49,6 +50,8 @@ export async function POST(request: NextRequest) {
       id: user.id,
       email: user.email,
       role: user.role as "EMPLOYEE" | "ADMIN",
+      loginId: user.loginId,
+      companyId: user.companyId,
     };
 
     // Issue new tokens (rotation)
@@ -78,7 +81,8 @@ export async function POST(request: NextRequest) {
           id: user.id,
           email: user.email,
           role: user.role,
-          employeeId: user.employeeId,
+          loginId: user.loginId,
+          companyId: user.companyId,
         },
       },
       { status: 200 }

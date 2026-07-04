@@ -1,6 +1,6 @@
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native", "rhel-openapi"]
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 
@@ -37,16 +37,45 @@ enum LeaveStatus {
 
 // ─── Models ──────────────────────────────────────────────────────────────────
 
-model User {
-  id            String   @id @default(cuid())
-  employeeId    String   @unique
-  email         String   @unique
-  passwordHash  String
-  role          Role     @default(EMPLOYEE)
-  emailVerified Boolean  @default(false)
-  createdAt     DateTime @default(now())
+model Company {
+  id        String   @id @default(cuid())
+  name      String
+  logoUrl   String?
+  initials  String
+  createdAt DateTime @default(now())
 
   // Relations
+  users          User[]
+  joinSequences  CompanyJoinSequence[]
+
+  @@index([name])
+}
+
+model CompanyJoinSequence {
+  id          String @id @default(cuid())
+  companyId   String
+  year        Int
+  lastSerial  Int    @default(0)
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, year])
+  @@index([companyId])
+}
+
+model User {
+  id                 String   @id @default(cuid())
+  loginId            String   @unique
+  email              String   @unique
+  passwordHash       String
+  role               Role     @default(EMPLOYEE)
+  emailVerified      Boolean  @default(false)
+  mustChangePassword Boolean  @default(false)
+  companyId          String
+  createdAt          DateTime @default(now())
+
+  // Relations
+  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   profile            EmployeeProfile?
   documents          Document[]
   attendance         AttendanceRecord[]
@@ -59,7 +88,8 @@ model User {
   notifications      Notification[]
 
   @@index([email])
-  @@index([employeeId])
+  @@index([loginId])
+  @@index([companyId])
 }
 
 model EmployeeProfile {
