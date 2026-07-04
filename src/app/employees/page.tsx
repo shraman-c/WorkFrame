@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api-client";
 import Navbar from "@/components/Navbar";
 import LoadingSpinner from "@/components/LoadingSpinner";
@@ -11,12 +12,17 @@ interface Employee {
   employeeId: string;
   email: string;
   emailVerified: boolean;
-  profile: { fullName: string; department: string | null; jobTitle: string | null } | null;
+  profile: { fullName: string; department: string | null; jobTitle: string | null; profilePictureUrl: string | null } | null;
+  attendanceToday?: { status: string } | null;
+  onLeave?: boolean;
 }
 
 export default function EmployeesPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     async function fetchEmployees() {
@@ -28,55 +34,97 @@ export default function EmployeesPage() {
     fetchEmployees();
   }, []);
 
+  const filtered = employees.filter((emp) => {
+    const q = search.toLowerCase();
+    return (
+      !q ||
+      emp.profile?.fullName?.toLowerCase().includes(q) ||
+      emp.employeeId.toLowerCase().includes(q) ||
+      emp.email.toLowerCase().includes(q) ||
+      emp.profile?.department?.toLowerCase().includes(q)
+    );
+  });
+
+  function getStatusDot(emp: Employee) {
+    if (emp.onLeave) return "bg-info"; // airplane icon placeholder — blue dot
+    if (emp.attendanceToday?.status === "PRESENT") return "bg-success";
+    return "bg-warning"; // absent
+  }
+
   return (
     <div className="min-h-screen bg-surface-base">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <p className="label-tactical mb-1">Administration</p>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground-primary uppercase">
-            Employees
-          </h1>
+        {/* Header row: NEW button + search */}
+        <div className="flex items-center gap-4 mb-8">
+          {isAdmin && (
+            <Link
+              href="/employees/new"
+              className="btn-primary text-sm px-5 py-2 shrink-0"
+            >
+              NEW
+            </Link>
+          )}
+          <div className="flex-1 max-w-xs">
+            <input
+              type="text"
+              placeholder="Search employees..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="input-field text-sm"
+            />
+          </div>
         </div>
 
-        {loading ? <LoadingSpinner /> : employees.length === 0 ? (
-          <p className="text-xs text-foreground-muted">No employees found.</p>
+        {loading ? (
+          <LoadingSpinner />
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-foreground-muted">No employees found.</p>
         ) : (
-          <div className="card overflow-hidden p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-foreground-muted border-b border-surface-border bg-surface-base">
-                    <th className="px-4 py-3 label-tactical">Name</th>
-                    <th className="px-4 py-3 label-tactical">ID</th>
-                    <th className="px-4 py-3 label-tactical">Email</th>
-                    <th className="px-4 py-3 label-tactical">Dept</th>
-                    <th className="px-4 py-3 label-tactical">Title</th>
-                    <th className="px-4 py-3 label-tactical">Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {employees.map((emp) => (
-                    <tr key={emp.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay">
-                      <td className="px-4 py-3">
-                        <Link href={`/employees/${emp.id}`} className="text-accent hover:text-accent-hover font-medium">
-                          {emp.profile?.fullName || "---"}
-                        </Link>
-                      </td>
-                      <td className="px-4 py-3 text-foreground-muted font-mono">{emp.employeeId}</td>
-                      <td className="px-4 py-3 text-foreground-secondary">{emp.email}</td>
-                      <td className="px-4 py-3 text-foreground-secondary">{emp.profile?.department || "---"}</td>
-                      <td className="px-4 py-3 text-foreground-secondary">{emp.profile?.jobTitle || "---"}</td>
-                      <td className="px-4 py-3">
-                        <span className={`label-tactical ${emp.emailVerified ? "text-success" : "text-warning"}`}>
-                          {emp.emailVerified ? "Verified" : "Unverified"}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filtered.map((emp) => (
+              <Link
+                key={emp.id}
+                href={`/employees/${emp.id}`}
+                className="card relative group hover:border-accent/40 transition-all cursor-pointer"
+              >
+                {/* Status indicator — top right */}
+                <span
+                  className={`absolute top-4 right-4 w-2.5 h-2.5 rounded-full ${getStatusDot(emp)}`}
+                  title={
+                    emp.onLeave
+                      ? "On Leave"
+                      : emp.attendanceToday?.status === "PRESENT"
+                      ? "Present"
+                      : "Absent"
+                  }
+                />
+
+                <div className="flex items-center gap-4">
+                  {/* Avatar placeholder */}
+                  <div className="w-12 h-12 rounded bg-surface-overlay flex items-center justify-center font-heading text-lg font-bold text-accent shrink-0 overflow-hidden">
+                    {emp.profile?.profilePictureUrl ? (
+                      <img
+                        src={emp.profile.profilePictureUrl}
+                        alt={emp.profile?.fullName || ""}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      (emp.profile?.fullName || emp.email)[0]?.toUpperCase() || "?"
+                    )}
+                  </div>
+
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-foreground-primary truncate">
+                      {emp.profile?.fullName || "No Name"}
+                    </p>
+                    <p className="text-xs text-foreground-muted truncate">
+                      {emp.profile?.jobTitle || emp.profile?.department || emp.employeeId}
+                    </p>
+                  </div>
+                </div>
+              </Link>
+            ))}
           </div>
         )}
       </main>

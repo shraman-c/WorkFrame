@@ -3,6 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { withAdmin, handleApiError } from "@/lib/rbac";
 import { leaveDecisionSchema } from "@/lib/validation";
 import { logAudit } from "@/lib/audit";
+import { createNotification } from "@/lib/notifications";
+import { sendEmail, leaveDecisionEmail } from "@/lib/email";
 
 interface RouteParams {
   params: { id: string };
@@ -32,7 +34,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     // Verify the leave request exists and is still pending
     const existing = await prisma.leaveRequest.findUnique({
       where: { id },
-      select: { id: true, status: true, employeeId: true },
+      select: { id: true, status: true, employeeId: true, leaveType: true },
     });
 
     if (!existing) {
@@ -74,6 +76,31 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       "LeaveRequest",
       id
     );
+
+    // Create in-app notification for the employee
+    const leaveLabel = existing.leaveType || updated.leaveType;
+    const startStr = new Date(updated.startDate).toLocaleDateString();
+    const endStr = new Date(updated.endDate).toLocaleDateString();
+    const statusLower = status.toLowerCase();
+    const notifMsg = `Your ${leaveLabel} leave request (${startStr} – ${endStr}) has been ${statusLower}.${reviewerComment ? ` Comment: ${reviewerComment}` : ""}`;
+    await createNotification(existing.employeeId, "LEAVE_DECISION", notifMsg);
+
+    // Send email notification to the employee
+    const employee = await prisma.user.findUnique({
+      where: { id: existing.employeeId },
+      select: { email: true, profile: { select: { fullName: true } } },
+    });
+    if (employee) {
+      const emailTemplate = leaveDecisionEmail({
+        employeeName: employee.profile?.fullName || "Employee",
+        leaveType: leaveLabel,
+        startDate: startStr,
+        endDate: endStr,
+        status,
+        reviewerComment,
+      });
+      await sendEmail({ to: employee.email, ...emailTemplate });
+    }
 
     return NextResponse.json(updated);
   } catch (error) {

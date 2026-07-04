@@ -53,6 +53,8 @@ model User {
   auditLogs          AuditLog[]
   verificationTokens VerificationToken[]
   refreshTokens      RefreshToken[]
+  salaries           SalaryStructure[]
+  notifications      Notification[]
 
   @@index([email])
   @@index([employeeId])
@@ -67,6 +69,8 @@ model EmployeeProfile {
   jobTitle          String?
   department        String?
   profilePictureUrl String?
+  about             String?
+  interests         String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
@@ -157,4 +161,40 @@ model RefreshToken {
 
   @@index([token])
   @@index([userId])
+}
+
+model SalaryStructure {
+  id            String   @id @default(cuid())
+  employeeId    String
+  baseSalary    Float
+  allowances    Json     // { hra, transport, medical, ... }
+  deductions    Json     // { tax, pf, ... }
+  netSalary     Float
+  effectiveDate DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId])
+  @@index([employeeId, effectiveDate])
+}
+
+enum NotificationType {
+  LEAVE_DECISION
+  GENERAL
+  SYSTEM
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType @default(GENERAL)
+  message   String
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([userId, createdAt])
 }

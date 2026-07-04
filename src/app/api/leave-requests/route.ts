@@ -58,8 +58,8 @@ export async function GET(request: NextRequest) {
     const user = withAdmin(request);
     const { searchParams } = new URL(request.url);
     const parsed = leaveQuerySchema.safeParse({
-      status: searchParams.get("status"),
-      employeeId: searchParams.get("employeeId"),
+      status: searchParams.get("status") || undefined,
+      employeeId: searchParams.get("employeeId") || undefined,
     });
 
     if (!parsed.success) {

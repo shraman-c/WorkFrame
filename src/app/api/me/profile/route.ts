@@ -29,6 +29,8 @@ export async function GET(request: NextRequest) {
             jobTitle: true,
             department: true,
             profilePictureUrl: true,
+            about: true,
+            interests: true,
           },
         },
         documents: {
@@ -80,6 +82,8 @@ export async function PATCH(request: NextRequest) {
         jobTitle: true,
         department: true,
         profilePictureUrl: true,
+        about: true,
+        interests: true,
       },
     });
 
