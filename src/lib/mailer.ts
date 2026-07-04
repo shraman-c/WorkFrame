@@ -16,7 +16,7 @@ export const sendLeaveDecisionEmail = async (
 ) => {
   try {
     const info = await transporter.sendMail({
-      from: `"WorkFrame HRMS Portal" <${process.env.GMAIL_USER}>`,
+     
       to: employeeEmail,
       subject: `Leave Request Update: ${status}`,
       html: `
