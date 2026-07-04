@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api-client";
 import Navbar from "@/components/Navbar";
-import StatusBadge from "@/components/StatusBadge";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 interface AttendanceRecord {
@@ -17,6 +16,27 @@ interface AttendanceRecord {
   user?: { employeeId: string; profile: { fullName: string } | null };
 }
 
+function StatusDot({ status }: { status: string }) {
+  const colors: Record<string, string> = {
+    PRESENT: "bg-success",
+    ABSENT: "bg-danger",
+    LEAVE: "bg-info",
+    HALF_DAY: "bg-warning",
+  };
+  const labels: Record<string, string> = {
+    PRESENT: "Present",
+    ABSENT: "Absent",
+    LEAVE: "On Leave",
+    HALF_DAY: "Half Day",
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <span className={`w-2 h-2 rounded-full ${colors[status] || "bg-surface-overlay"}`} />
+      <span className="text-foreground-secondary">{labels[status] || status}</span>
+    </div>
+  );
+}
+
 export default function AttendancePage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
@@ -25,6 +45,9 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [viewMode, setViewMode] = useState<"day" | "date">("day");
+  const [searchEmployee, setSearchEmployee] = useState("");
 
   const fetchRecords = useCallback(async () => {
     try {
@@ -72,79 +95,143 @@ export default function AttendancePage() {
   const hasCheckedIn = !!todayRecord?.checkIn;
   const hasCheckedOut = !!todayRecord?.checkOut;
 
+  function navigateDate(direction: number) {
+    const d = new Date(selectedDate);
+    d.setDate(d.getDate() + direction);
+    setSelectedDate(d);
+  }
+
+  const selectedDateStr = selectedDate.toISOString().split("T")[0];
+
+  const filteredDayRecords = records.filter((r) => {
+    if (!r.date.startsWith(selectedDateStr)) return false;
+    if (!isAdmin || !searchEmployee) return true;
+    const q = searchEmployee.toLowerCase();
+    return (
+      r.user?.profile?.fullName?.toLowerCase().includes(q) ||
+      r.user?.employeeId?.toLowerCase().includes(q) ||
+      r.employeeId?.toLowerCase().includes(q)
+    );
+  });
+
+  const presentCount = records.filter((r) => r.status === "PRESENT").length;
+  const leaveCount = records.filter((r) => r.status === "LEAVE").length;
+  const totalWorking = records.length;
+
   return (
     <div className="min-h-screen bg-surface-base">
       <Navbar />
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6">
-          <p className="label-tactical mb-1">{isAdmin ? "System" : "Personal"}</p>
-          <h1 className="font-heading text-2xl font-bold tracking-tight text-foreground-primary uppercase">
-            {isAdmin ? "Attendance Overview" : "My Attendance"}
-          </h1>
+      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Date navigation + view toggle */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigateDate(-1)} className="w-8 h-8 flex items-center justify-center text-foreground-muted hover:text-foreground-primary hover:bg-surface-overlay transition-colors rounded">&lsaquo;</button>
+            <button onClick={() => setSelectedDate(new Date())} className="px-3 py-1.5 text-sm font-medium text-foreground-primary hover:bg-surface-overlay transition-colors rounded">
+              {selectedDate.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+            </button>
+            <button onClick={() => navigateDate(1)} className="w-8 h-8 flex items-center justify-center text-foreground-muted hover:text-foreground-primary hover:bg-surface-overlay transition-colors rounded">&rsaquo;</button>
+          </div>
+          <div className="flex border border-surface-border rounded overflow-hidden">
+            <button onClick={() => setViewMode("day")} className={`px-3 py-1 text-xs font-medium transition-colors ${viewMode === "day" ? "bg-accent text-white" : "text-foreground-muted hover:text-foreground-primary"}`}>Day</button>
+            <button onClick={() => setViewMode("date")} className={`px-3 py-1 text-xs font-medium transition-colors ${viewMode === "date" ? "bg-accent text-white" : "text-foreground-muted hover:text-foreground-primary"}`}>Date</button>
+          </div>
         </div>
 
+        {/* Summary chips (employee) */}
         {!isAdmin && (
-          <div className="card mb-6">
-            <div className="flex items-center justify-between flex-wrap gap-4">
-              <div>
-                <p className="label-tactical mb-1">Today</p>
-                <p className="text-sm text-foreground-secondary font-mono">
-                  {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
-                </p>
-                {todayRecord && (
-                  <div className="flex items-center gap-4 mt-2 text-xs text-foreground-muted font-mono">
-                    <span>In: {todayRecord.checkIn ? new Date(todayRecord.checkIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "---"}</span>
-                    <span>Out: {todayRecord.checkOut ? new Date(todayRecord.checkOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "---"}</span>
-                    {todayRecord.status && <StatusBadge status={todayRecord.status} size="md" />}
-                  </div>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <button onClick={handleCheckIn} disabled={actionLoading || hasCheckedIn}
-                  className="btn-primary disabled:opacity-30 disabled:cursor-not-allowed">
-                  {actionLoading ? "..." : hasCheckedIn ? "Checked In" : "Check In"}
-                </button>
-                <button onClick={handleCheckOut} disabled={actionLoading || !hasCheckedIn || hasCheckedOut}
-                  className="btn-danger disabled:opacity-30 disabled:cursor-not-allowed">
-                  {actionLoading ? "..." : hasCheckedOut ? "Checked Out" : "Check Out"}
-                </button>
-              </div>
-            </div>
-            {message && (
-              <div className={`mt-4 p-3 text-xs ${message.type === "success" ? "bg-success/10 border border-success/20 text-success" : "bg-danger/10 border border-danger/20 text-danger"}`}>
-                {message.text}
-              </div>
-            )}
+          <div className="flex items-center gap-3 mb-6">
+            <span className="px-3 py-1.5 text-xs font-medium bg-success/10 text-success border border-success/20 rounded">Present: {presentCount}</span>
+            <span className="px-3 py-1.5 text-xs font-medium bg-warning/10 text-warning border border-warning/20 rounded">Leaves: {leaveCount}</span>
+            <span className="px-3 py-1.5 text-xs font-medium bg-surface-overlay text-foreground-secondary border border-surface-border rounded">Total Working: {totalWorking}</span>
           </div>
         )}
 
-        <div className="card">
-          <h2 className="section-title mb-4">{isAdmin ? "All Employees" : "This Week"}</h2>
-          {loading ? <LoadingSpinner /> : records.length === 0 ? (
-            <p className="text-xs text-foreground-muted">No attendance records found.</p>
-          ) : (
-            <div className="space-y-1">
-              {records.map((rec) => (
-                <div key={rec.id} className="flex items-center justify-between py-2.5 border-b border-surface-border last:border-0">
-                  <div className="flex-1">
-                    {isAdmin && rec.user && (
-                      <p className="text-xs font-medium text-foreground-primary">{rec.user.profile?.fullName || rec.user.employeeId}</p>
-                    )}
-                    <p className="text-xs text-foreground-secondary font-mono">
-                      {new Date(rec.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
-                    </p>
-                    <p className="text-[10px] text-foreground-muted font-mono mt-0.5">
-                      {rec.checkIn ? `In: ${new Date(rec.checkIn).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : "No check-in"}
-                      {rec.checkOut ? ` > ${new Date(rec.checkOut).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : ""}
-                    </p>
-                  </div>
-                  <StatusBadge status={rec.status} size="md" />
-                </div>
-              ))}
-            </div>
-          )}
+        {/* Admin: search */}
+        {isAdmin && (
+          <div className="mb-4">
+            <input type="text" placeholder="Search employee..." value={searchEmployee} onChange={(e) => setSearchEmployee(e.target.value)} className="input-field text-sm max-w-xs" />
+          </div>
+        )}
+
+        {message && (
+          <div className={`mb-4 p-3 text-xs ${message.type === "success" ? "bg-success/10 border border-success/20 text-success" : "bg-danger/10 border border-danger/20 text-danger"}`}>{message.text}</div>
+        )}
+
+        {/* Table */}
+        <div className="card overflow-hidden p-0">
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-left bg-surface-base border-b border-surface-border">
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Date</th>
+                  {isAdmin && <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Employee</th>}
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Check In</th>
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Check Out</th>
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Work Hours</th>
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Extra Hours</th>
+                  <th className="px-4 py-3 font-medium text-foreground-muted uppercase tracking-wider">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loading ? (
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-8"><LoadingSpinner size="sm" /></td></tr>
+                ) : filteredDayRecords.length === 0 ? (
+                  <tr><td colSpan={isAdmin ? 7 : 6} className="px-4 py-6 text-center text-foreground-muted">No records for this day.</td></tr>
+                ) : (
+                  filteredDayRecords.map((rec) => {
+                    const checkInTime = rec.checkIn ? new Date(rec.checkIn) : null;
+                    const checkOutTime = rec.checkOut ? new Date(rec.checkOut) : null;
+                    let workHours = "---";
+                    let extraHours = "---";
+                    if (checkInTime && checkOutTime) {
+                      const hours = (checkOutTime.getTime() - checkInTime.getTime()) / 3600000;
+                      workHours = hours.toFixed(1) + "h";
+                      extraHours = hours > 8 ? "+" + (hours - 8).toFixed(1) + "h" : "---";
+                    }
+                    return (
+                      <tr key={rec.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay/50">
+                        <td className="px-4 py-3 text-foreground-secondary font-mono">
+                          {new Date(rec.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-foreground-primary font-medium">{rec.user?.profile?.fullName || rec.user?.employeeId || "---"}</td>
+                        )}
+                        <td className="px-4 py-3 text-foreground-secondary font-mono">{checkInTime ? checkInTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "---"}</td>
+                        <td className="px-4 py-3 text-foreground-secondary font-mono">{checkOutTime ? checkOutTime.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" }) : "---"}</td>
+                        <td className="px-4 py-3 text-foreground-secondary font-mono">{workHours}</td>
+                        <td className="px-4 py-3 font-mono">
+                          {extraHours !== "---" ? <span className="text-accent">{extraHours}</span> : <span className="text-foreground-muted">---</span>}
+                        </td>
+                        <td className="px-4 py-3"><StatusDot status={rec.status} /></td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
+
+      {/* Floating Check In/Out pill */}
+      {!isAdmin && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
+          {!hasCheckedIn ? (
+            <button onClick={handleCheckIn} disabled={actionLoading} className="px-6 py-3 bg-accent text-white font-semibold text-sm rounded-full shadow-lg hover:bg-accent-hover transition-all disabled:opacity-50">
+              {actionLoading ? "..." : "Check In"}
+            </button>
+          ) : !hasCheckedOut ? (
+            <div className="flex items-center gap-3 bg-surface-raised border border-surface-border rounded-full shadow-lg px-4 py-2">
+              <span className="text-xs text-foreground-muted font-mono">Since {new Date(todayRecord!.checkIn!).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
+              <button onClick={handleCheckOut} disabled={actionLoading} className="px-5 py-2 bg-danger text-white font-semibold text-xs rounded-full hover:bg-red-600 transition-all disabled:opacity-50">
+                {actionLoading ? "..." : "Check Out"}
+              </button>
+            </div>
+          ) : (
+            <div className="px-5 py-3 bg-success/10 border border-success/20 text-success text-sm font-medium rounded-full shadow-lg">Checked Out</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -34,9 +34,14 @@ export const verifyEmailSchema = z.object({
 
 /** Schema for employee self-edit (limited fields) */
 export const employeeProfileUpdateSchema = z.object({
+  fullName: z.string().min(1).max(200).optional(),
   phone: z.string().max(20).optional(),
   address: z.string().max(500).optional(),
+  jobTitle: z.string().max(100).optional(),
+  department: z.string().max(100).optional(),
   profilePictureUrl: z.string().url().optional().or(z.literal("")),
+  about: z.string().max(2000).optional(),
+  interests: z.string().max(2000).optional(),
 });
 
 /** Schema for admin full-field edit */
@@ -78,4 +83,32 @@ export const leaveDecisionSchema = z.object({
 export const leaveQuerySchema = z.object({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
   employeeId: z.string().optional(),
+});
+
+// ─── Payroll ─────────────────────────────────────────────────────────────────
+
+export const createSalaryStructureSchema = z.object({
+  employeeId: z.string().min(1, "Employee ID is required"),
+  baseSalary: z.number().positive("Base salary must be positive"),
+  allowances: z.record(z.number().min(0)).default({}),
+  deductions: z.record(z.number().min(0)).default({}),
+  effectiveDate: z.string().min(1, "Effective date is required"),
+}).refine(
+  (data) => {
+    const totalAllowances = Object.values(data.allowances).reduce((s, v) => s + v, 0);
+    const totalDeductions = Object.values(data.deductions).reduce((s, v) => s + v, 0);
+    return data.baseSalary + totalAllowances - totalDeductions >= 0;
+  },
+  { message: "Net salary cannot be negative" }
+);
+
+export const payrollQuerySchema = z.object({
+  employeeId: z.string().optional(),
+});
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+
+export const notificationQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).default(20),
 });

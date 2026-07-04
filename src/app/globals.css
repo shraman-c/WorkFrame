@@ -45,6 +45,10 @@
     @apply bg-surface-raised text-foreground-primary border border-surface-border
            placeholder:text-foreground-muted;
   }
+
+  input:focus, textarea:focus, select:focus {
+    @apply outline-none border-accent ring-1 ring-accent/30;
+  }
 }
 
 /* ─── Utility Classes ────────────────────────────────────────────────────── */

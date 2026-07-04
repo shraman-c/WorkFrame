@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyEmailSchema } from "@/lib/validation";
+import { sendEmail, welcomeEmail } from "@/lib/email";
 
 export async function POST(request: NextRequest) {
   try {
@@ -59,6 +60,18 @@ export async function POST(request: NextRequest) {
         data: { emailVerified: true },
       });
     });
+
+    // Send welcome email
+    const user = await prisma.user.findUnique({
+      where: { id: verificationToken.userId },
+      select: { email: true, profile: { select: { fullName: true } } },
+    });
+    if (user) {
+      const emailTemplate = welcomeEmail({
+        employeeName: user.profile?.fullName || "Employee",
+      });
+      await sendEmail({ to: user.email, ...emailTemplate });
+    }
 
     return NextResponse.json(
       { message: "Email verified successfully. You can now sign in." },
