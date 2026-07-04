@@ -33,25 +33,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = getAccessToken();
-    if (token) {
+    async function initializeAuth() {
+      const token = getAccessToken();
+      if (token) {
+        try {
+          const payload = JSON.parse(atob(token.split(".")[1]));
+          if (payload.exp * 1000 > Date.now()) {
+            setUser({
+              id: payload.id,
+              email: payload.email,
+              role: payload.role,
+              employeeId: payload.employeeId || "",
+            });
+            setLoading(false);
+            return;
+          }
+        } catch {}
+      }
+
+      // Attempt silent refresh to restore session
       try {
-        const payload = JSON.parse(atob(token.split(".")[1]));
-        if (payload.exp * 1000 > Date.now()) {
-          setUser({
-            id: payload.id,
-            email: payload.email,
-            role: payload.role,
-            employeeId: "",
-          });
+        const res = await fetch("/api/auth/refresh", { method: "POST" });
+        if (res.ok) {
+          const data = await res.json();
+          setAccessToken(data.accessToken);
+          setUser(data.user);
         } else {
           clearAccessToken();
         }
       } catch {
         clearAccessToken();
+      } finally {
+        setLoading(false);
       }
     }
-    setLoading(false);
+    initializeAuth();
   }, []);
 
   const signin = useCallback(async (email: string, password: string) => {

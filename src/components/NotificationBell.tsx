@@ -96,6 +96,9 @@ export default function NotificationBell() {
         onClick={() => setOpen((o) => !o)}
         className="relative p-1.5 text-foreground-muted hover:text-foreground-primary hover:bg-surface-overlay transition-colors"
         title="Notifications"
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-label="Notifications"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -112,7 +115,11 @@ export default function NotificationBell() {
           />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-danger text-white text-[8px] font-bold flex items-center justify-center rounded-full">
+          <span
+            className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 bg-danger text-white text-[8px] font-bold flex items-center justify-center rounded-full"
+            aria-live="polite"
+            role="status"
+          >
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}

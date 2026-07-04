@@ -186,6 +186,10 @@ function AdminTimeOff() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [filter, setFilter] = useState<"ALL" | "PENDING" | "APPROVED" | "REJECTED">("ALL");
   const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const [counts, setCounts] = useState<Record<string, number>>({ ALL: 0, PENDING: 0, APPROVED: 0, REJECTED: 0 });
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
 
   // Decision modal state
   const [decisionTarget, setDecisionTarget] = useState<LeaveRequest | null>(null);
@@ -197,26 +201,36 @@ function AdminTimeOff() {
     setError(null);
     if (initial) setLoading(true);
     try {
-      const data = await apiFetch<{ requests: LeaveRequest[] }>("/api/leave-requests");
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("pageSize", "10");
+      if (filter !== "ALL") params.append("status", filter);
+      if (search) params.append("search", search);
+      if (department) params.append("department", department);
+
+      const data = await apiFetch<{
+        requests: LeaveRequest[];
+        counts: Record<string, number>;
+        pagination: { total: number; totalPages: number };
+      }>(`/api/leave-requests?${params.toString()}`);
+
       setRequests(data.requests);
+      setCounts(data.counts);
+      setPagination(data.pagination);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load leave requests.");
-    } finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => { fetchRequests(true); }, [fetchRequests]);
-
-  const pendingCount = requests.filter((r) => r.status === "PENDING").length;
-
-  const filtered = requests.filter((lr) => {
-    if (filter !== "ALL" && lr.status !== filter) return false;
-    if (search) {
-      const name = lr.user?.profile?.fullName?.toLowerCase() || "";
-      const eid = lr.user?.employeeId?.toLowerCase() || "";
-      if (!name.includes(search.toLowerCase()) && !eid.includes(search.toLowerCase())) return false;
+    } finally {
+      setLoading(false);
     }
-    return true;
-  });
+  }, [page, filter, search, department]);
+
+  useEffect(() => {
+    fetchRequests(true);
+  }, [fetchRequests]);
+
+  const handleFilterChange = () => {
+    setPage(1);
+  };
 
   function openDecision(lr: LeaveRequest, action: "APPROVED" | "REJECTED") {
     setDecisionTarget(lr);
@@ -241,10 +255,10 @@ function AdminTimeOff() {
   }
 
   const tabs = [
-    { key: "ALL" as const, label: "All", count: requests.length },
-    { key: "PENDING" as const, label: "Pending", count: pendingCount },
-    { key: "APPROVED" as const, label: "Approved", count: requests.filter((r) => r.status === "APPROVED").length },
-    { key: "REJECTED" as const, label: "Rejected", count: requests.filter((r) => r.status === "REJECTED").length },
+    { key: "ALL" as const, label: "All", count: counts.ALL },
+    { key: "PENDING" as const, label: "Pending", count: counts.PENDING },
+    { key: "APPROVED" as const, label: "Approved", count: counts.APPROVED },
+    { key: "REJECTED" as const, label: "Rejected", count: counts.REJECTED },
   ];
 
   return (
@@ -252,9 +266,9 @@ function AdminTimeOff() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-heading text-xl font-bold text-foreground-primary">Leave Requests</h1>
-          {pendingCount > 0 && (
+          {counts.PENDING > 0 && (
             <span className="inline-flex items-center mt-1 px-2 py-0.5 text-[10px] font-semibold bg-warning/15 text-warning border border-warning/20 rounded">
-              {pendingCount} pending decision{pendingCount !== 1 ? "s" : ""}
+              {counts.PENDING} pending decision{counts.PENDING !== 1 ? "s" : ""}
             </span>
           )}
         </div>
@@ -279,7 +293,7 @@ function AdminTimeOff() {
         {tabs.map((t) => (
           <button
             key={t.key}
-            onClick={() => setFilter(t.key)}
+            onClick={() => { setFilter(t.key); handleFilterChange(); }}
             className={`px-4 py-2.5 text-xs font-medium border-b-2 transition-colors ${
               filter === t.key
                 ? "border-accent text-accent"
@@ -298,16 +312,34 @@ function AdminTimeOff() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-xs">
-        <input
-          type="text"
-          placeholder="Search by name or ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field text-xs pl-8"
-        />
-        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-muted text-xs">&#128269;</span>
+      {/* Search & Department Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
+        <div className="relative flex-1 max-w-xs">
+          <input
+            type="text"
+            placeholder="Search by name or ID..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
+            className="input-field text-xs pl-8"
+          />
+          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-foreground-muted text-xs">&#128269;</span>
+        </div>
+        <div className="w-full sm:w-48">
+          <select
+            value={department}
+            onChange={(e) => { setDepartment(e.target.value); handleFilterChange(); }}
+            className="input-field text-xs"
+          >
+            <option value="">All Departments</option>
+            <option value="Engineering">Engineering</option>
+            <option value="Product">Product</option>
+            <option value="Design">Design</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Sales">Sales</option>
+            <option value="Finance">Finance</option>
+            <option value="Operations">Operations</option>
+          </select>
+        </div>
       </div>
 
       {/* Table */}
@@ -328,13 +360,13 @@ function AdminTimeOff() {
             <tbody>
               {loading ? (
                 <tr><td colSpan={7} className="px-4 py-12"><LoadingSpinner size="sm" /></td></tr>
-              ) : filtered.length === 0 ? (
+              ) : requests.length === 0 ? (
                 <tr><td colSpan={7} className="px-4 py-12 text-center">
                   <p className="text-foreground-muted text-sm">{filter === "ALL" && !search ? "No leave requests found." : `No ${filter.toLowerCase()} requests${search ? " matching \"" + search + "\"" : ""}.`}</p>
-                  <button onClick={() => { setFilter("ALL"); setSearch(""); }} className="mt-2 text-[10px] text-accent hover:text-accent-hover font-medium">Clear filters</button>
+                  <button onClick={() => { setFilter("ALL"); setSearch(""); setDepartment(""); setPage(1); }} className="mt-2 text-[10px] text-accent hover:text-accent-hover font-medium">Clear filters</button>
                 </td></tr>
               ) : (
-                filtered.map((lr) => (
+                requests.map((lr) => (
                   <tr key={lr.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay/50 transition-colors">
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground-primary">{lr.user?.profile?.fullName || "---"}</div>
@@ -381,6 +413,31 @@ function AdminTimeOff() {
           </table>
         </div>
       </div>
+
+      {/* Pagination */}
+      {!loading && pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4">
+          <span className="text-xs text-foreground-muted">
+            Showing page {page} of {pagination.totalPages} ({pagination.total} requests)
+          </span>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+              disabled={page === pagination.totalPages}
+              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Decision confirmation modal */}
       {decisionTarget && decisionAction && (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, handleApiError } from "@/lib/rbac";
+import { invalidateCache } from "@/lib/cache";
 
 interface RouteParams {
   params: { id: string };
@@ -35,10 +36,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const updated = await prisma.notification.update({
       where: { id },
       data: { isRead: true },
-      select: { id: true, isRead: true },
+      select: { id: true, isRead: true, userId: true },
     });
 
-    return NextResponse.json(updated);
+    invalidateCache(`notifications:unread:${updated.userId}`);
+
+    return NextResponse.json({ id: updated.id, isRead: updated.isRead });
   } catch (error) {
     return handleApiError(error);
   }

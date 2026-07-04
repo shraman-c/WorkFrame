@@ -5,6 +5,7 @@ import { withAdmin, handleApiError } from "@/lib/rbac";
 /**
  * GET /api/attendance?employeeId=xxx&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
  * Admin-only: view attendance for a specific employee or all employees.
+ * Supports search, department filter, and pagination.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -12,6 +13,11 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
 
     const employeeId = searchParams.get("employeeId");
+    const search = searchParams.get("search") || undefined;
+    const department = searchParams.get("department") || undefined;
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
+    const skip = (page - 1) * pageSize;
 
     // Default: last 7 days
     const endDate = searchParams.get("endDate")
@@ -28,34 +34,90 @@ export async function GET(request: NextRequest) {
     startDate.setUTCHours(0, 0, 0, 0);
     endDate.setUTCHours(23, 59, 59, 999);
 
-    const where: Record<string, unknown> = {
-      date: { gte: startDate, lte: endDate },
-    };
+    const andConditions: any[] = [
+      { date: { gte: startDate, lte: endDate } },
+    ];
 
     if (employeeId) {
-      where.employeeId = employeeId;
+      andConditions.push({ employeeId });
     }
 
-    const records = await prisma.attendanceRecord.findMany({
-      where,
-      orderBy: [{ date: "desc" }, { employeeId: "asc" }],
-      select: {
-        id: true,
-        employeeId: true,
-        date: true,
-        checkIn: true,
-        checkOut: true,
-        status: true,
+    if (department) {
+      andConditions.push({
         user: {
-          select: {
-            employeeId: true,
-            profile: { select: { fullName: true } },
+          profile: {
+            department: {
+              equals: department,
+              mode: "insensitive",
+            },
           },
         },
+      });
+    }
+
+    if (search) {
+      andConditions.push({
+        user: {
+          OR: [
+            {
+              employeeId: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              profile: {
+                fullName: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const where = { AND: andConditions };
+
+    const [records, total] = await Promise.all([
+      prisma.attendanceRecord.findMany({
+        where,
+        orderBy: [{ date: "desc" }, { employeeId: "asc" }],
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          employeeId: true,
+          date: true,
+          checkIn: true,
+          checkOut: true,
+          status: true,
+          user: {
+            select: {
+              employeeId: true,
+              profile: {
+                select: {
+                  fullName: true,
+                  department: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      prisma.attendanceRecord.count({ where }),
+    ]);
+
+    return NextResponse.json({
+      records,
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
       },
     });
-
-    return NextResponse.json({ records });
   } catch (error) {
     return handleApiError(error);
   }

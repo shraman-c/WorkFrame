@@ -50,8 +50,7 @@ export async function POST(request: NextRequest) {
 
 /**
  * GET /api/leave-requests
- * Admin-only: view all leave requests with optional status/employee filters.
- * Also used by employees via /api/leave-requests/me (separate route).
+ * Admin-only: view all leave requests with optional status/employee/department filters, search, and pagination.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -60,50 +59,119 @@ export async function GET(request: NextRequest) {
     const parsed = leaveQuerySchema.safeParse({
       status: searchParams.get("status") || undefined,
       employeeId: searchParams.get("employeeId") || undefined,
+      department: searchParams.get("department") || undefined,
+      search: searchParams.get("search") || undefined,
+      page: searchParams.get("page"),
+      pageSize: searchParams.get("pageSize"),
     });
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid query parameters" },
+        { error: "Invalid query parameters", details: parsed.error.flatten().fieldErrors },
         { status: 400 }
       );
     }
 
-    const { status, employeeId } = parsed.data;
+    const { status, employeeId, department, search, page, pageSize } = parsed.data;
 
-    const where: Record<string, unknown> = {};
-    if (status) where.status = status;
-    if (employeeId) where.employeeId = employeeId;
+    const skip = (page - 1) * pageSize;
 
-    const requests = await prisma.leaveRequest.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        leaveType: true,
-        startDate: true,
-        endDate: true,
-        remarks: true,
-        status: true,
-        reviewerComment: true,
-        createdAt: true,
+    const andConditions: any[] = [];
+    if (status) {
+      andConditions.push({ status });
+    }
+    if (employeeId) {
+      andConditions.push({ employeeId });
+    }
+    if (department) {
+      andConditions.push({
         user: {
-          select: {
-            id: true,
-            employeeId: true,
-            profile: { select: { fullName: true } },
+          profile: {
+            department: {
+              equals: department,
+              mode: "insensitive",
+            },
           },
         },
-        reviewer: {
-          select: {
-            id: true,
-            profile: { select: { fullName: true } },
+      });
+    }
+    if (search) {
+      andConditions.push({
+        user: {
+          OR: [
+            {
+              employeeId: {
+                contains: search,
+                mode: "insensitive",
+              },
+            },
+            {
+              profile: {
+                fullName: {
+                  contains: search,
+                  mode: "insensitive",
+                },
+              },
+            },
+          ],
+        },
+      });
+    }
+
+    const where = andConditions.length > 0 ? { AND: andConditions } : {};
+
+    const [requests, total, allCount, pendingCount, approvedCount, rejectedCount] = await Promise.all([
+      prisma.leaveRequest.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: pageSize,
+        select: {
+          id: true,
+          leaveType: true,
+          startDate: true,
+          endDate: true,
+          remarks: true,
+          status: true,
+          reviewerComment: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              employeeId: true,
+              profile: { select: { fullName: true, department: true } },
+            },
+          },
+          reviewer: {
+            select: {
+              id: true,
+              profile: { select: { fullName: true } },
+            },
           },
         },
+      }),
+      prisma.leaveRequest.count({ where }),
+      prisma.leaveRequest.count({}),
+      prisma.leaveRequest.count({ where: { status: "PENDING" } }),
+      prisma.leaveRequest.count({ where: { status: "APPROVED" } }),
+      prisma.leaveRequest.count({ where: { status: "REJECTED" } }),
+    ]);
+
+    return NextResponse.json({
+      requests,
+      counts: {
+        ALL: allCount,
+        PENDING: pendingCount,
+        APPROVED: approvedCount,
+        REJECTED: rejectedCount,
+      },
+      pagination: {
+        page,
+        pageSize,
+        total,
+        totalPages: Math.ceil(total / pageSize),
       },
     });
-
-    return NextResponse.json({ requests });
   } catch (error) {
     return handleApiError(error);
   }

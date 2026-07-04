@@ -49,6 +49,40 @@ export async function apiFetch<T = unknown>(
 
   // Handle 401 — token expired or invalid
   if (response.status === 401) {
+    try {
+      // Attempt to refresh token silently
+      const refreshRes = await fetch("/api/auth/refresh", { method: "POST" });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        setAccessToken(refreshData.accessToken);
+
+        // Retry the original request with new access token
+        const retryHeaders = {
+          ...headers,
+          "Authorization": `Bearer ${refreshData.accessToken}`,
+        };
+
+        const retryResponse = await fetch(url, {
+          ...rest,
+          headers: retryHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+
+        if (retryResponse.status === 401) {
+          throw new Error("Token invalid after refresh");
+        }
+
+        const retryData = await retryResponse.json();
+        if (!retryResponse.ok) {
+          throw new Error(retryData.error || `Request failed with status ${retryResponse.status}`);
+        }
+
+        return retryData as T;
+      }
+    } catch (err) {
+      console.error("Silent token refresh failed:", err);
+    }
+
     clearAccessToken();
     if (typeof window !== "undefined") {
       window.location.href = "/";
