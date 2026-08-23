@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, withAdmin, handleApiError } from "@/lib/rbac";
 import { leaveRequestSchema, leaveQuerySchema } from "@/lib/validation";
+import type { Prisma } from "@prisma/client";
 
 /**
  * POST /api/leave-requests
@@ -54,7 +55,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const user = withAdmin(request);
+    withAdmin(request);
     const { searchParams } = new URL(request.url);
     const parsed = leaveQuerySchema.safeParse({
       status: searchParams.get("status") || undefined,
@@ -76,7 +77,7 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * pageSize;
 
-    const andConditions: any[] = [];
+    const andConditions: Prisma.LeaveRequestWhereInput[] = [];
     if (status) {
       andConditions.push({ status });
     }

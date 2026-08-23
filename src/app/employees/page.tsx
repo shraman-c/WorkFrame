@@ -85,7 +85,7 @@ export default function EmployeesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Admin Dashboard Stats Row */}
@@ -209,14 +209,14 @@ export default function EmployeesPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page === pagination.totalPages}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Next
               </button>

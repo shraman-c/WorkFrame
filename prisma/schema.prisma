@@ -173,7 +173,8 @@ model AuditLog {
 model VerificationToken {
   id        String   @id @default(cuid())
   userId    String
-  token     String   @unique
+  token     String?  @unique
+  otp       String?  // 6-digit OTP code (stored hashed for security)
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
@@ -181,6 +182,7 @@ model VerificationToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([token])
+  @@index([otp])
   @@index([userId])
 }
 

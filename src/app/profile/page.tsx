@@ -193,13 +193,13 @@ export default function ProfilePage() {
   const certDocs = documents.filter((d) => d.type === "CERTIFICATE");
   const canViewSalary = user?.role === "ADMIN" || profile?.id === user?.id;
 
-  if (loading) return <div className="min-h-screen bg-surface-base"><Navbar /><LoadingSpinner /></div>;
-  if (!profile) return <div className="min-h-screen bg-surface-base"><Navbar /><div className="max-w-4xl mx-auto p-8 text-center text-foreground-muted">Profile not found.</div></div>;
+  if (loading) return <div className="min-h-screen"><Navbar /><LoadingSpinner /></div>;
+  if (!profile) return <div className="min-h-screen"><Navbar /><div className="max-w-4xl mx-auto p-8 text-center text-foreground-muted">Profile not found.</div></div>;
 
   const initials = (profile.profile?.fullName || profile.email)[0]?.toUpperCase() || "?";
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header: avatar + name + key-value block */}
@@ -221,7 +221,7 @@ export default function ProfilePage() {
             <button
               onClick={() => profilePicRef.current?.click()}
               disabled={uploadingPic}
-              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs hover:bg-accent-hover transition-colors disabled:opacity-50"
+              className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-accent text-white flex items-center justify-center text-xs hover:bg-accent-hover transition-colors"
               title="Upload profile picture"
             >
               {uploadingPic ? '...' : '📷'}
@@ -372,7 +372,7 @@ export default function ProfilePage() {
               <div className="card">
                 <div className="flex items-center justify-between mb-3">
                   <h3 className="text-sm font-semibold text-foreground-primary">Resume PDF</h3>
-                  <button onClick={() => resumeInputRef.current?.click()} disabled={uploading} className="text-xs text-accent hover:text-accent-hover font-medium disabled:opacity-50">
+                  <button onClick={() => resumeInputRef.current?.click()} disabled={uploading} className="text-xs text-accent hover:text-accent-hover font-medium">
                     {uploading ? "Uploading..." : "+ Upload"}
                   </button>
                   <input ref={resumeInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "RESUME"); e.target.value = ""; }} />
@@ -388,7 +388,7 @@ export default function ProfilePage() {
                           <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-secondary hover:text-accent truncate">Resume</a>
                           <span className="text-[10px] text-foreground-muted font-mono">{new Date(doc.uploadedAt).toLocaleDateString()}</span>
                         </div>
-                        <button onClick={() => handleDeleteDocument(doc.id)} disabled={deletingId === doc.id} className="text-[10px] text-danger hover:text-red-400 ml-2 disabled:opacity-50">
+                        <button onClick={() => handleDeleteDocument(doc.id)} disabled={deletingId === doc.id} className="text-[10px] text-danger hover:text-red-400 ml-2">
                           {deletingId === doc.id ? "..." : "Delete"}
                         </button>
                       </div>
@@ -485,7 +485,7 @@ export default function ProfilePage() {
                 <div className="mt-3 border-t border-surface-border pt-3">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] text-foreground-muted uppercase tracking-wider">Certificate PDFs</p>
-                    <button onClick={() => certInputRef.current?.click()} disabled={uploading} className="text-[10px] text-accent hover:text-accent-hover font-medium disabled:opacity-50">
+                    <button onClick={() => certInputRef.current?.click()} disabled={uploading} className="text-[10px] text-accent hover:text-accent-hover font-medium">
                       {uploading ? "..." : "+ Upload"}
                     </button>
                     <input ref={certInputRef} type="file" accept=".pdf" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileUpload(f, "CERTIFICATE"); e.target.value = ""; }} />
@@ -501,7 +501,7 @@ export default function ProfilePage() {
                             <a href={doc.fileUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-foreground-secondary hover:text-accent truncate">Certificate</a>
                             <span className="text-[10px] text-foreground-muted font-mono">{new Date(doc.uploadedAt).toLocaleDateString()}</span>
                           </div>
-                          <button onClick={() => handleDeleteDocument(doc.id)} disabled={deletingId === doc.id} className="text-[10px] text-danger hover:text-red-400 ml-2 disabled:opacity-50">
+                          <button onClick={() => handleDeleteDocument(doc.id)} disabled={deletingId === doc.id} className="text-[10px] text-danger hover:text-red-400 ml-2">
                             {deletingId === doc.id ? "..." : "Delete"}
                           </button>
                         </div>
@@ -616,7 +616,7 @@ export default function ProfilePage() {
             {/* Edit / Save buttons */}
             {editing && (
               <div className="border-t border-surface-border mt-6 pt-4 flex gap-3">
-                <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-50 text-sm">
+                <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">
                   {saving ? "Saving..." : "Save Changes"}
                 </button>
                 <button

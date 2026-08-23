@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAuthUser, type JwtPayload } from "./auth";
+import { getAuthUser } from "./auth";
+import type { JwtPayload } from "./auth";
 
 // ─── Error Class ─────────────────────────────────────────────────────────────
 

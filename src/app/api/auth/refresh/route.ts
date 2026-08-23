@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { verifyRefreshToken, signAccessToken, signRefreshToken } from "@/lib/jwt";
+import { handleApiError } from "@/lib/rbac";
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -12,9 +13,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Refresh token required" }, { status: 401 });
     }
 
-    let payload;
     try {
-      payload = verifyRefreshToken(refreshToken);
+      verifyRefreshToken(refreshToken);
     } catch {
       return NextResponse.json({ error: "Invalid or expired refresh token" }, { status: 401 });
     }
@@ -38,6 +38,8 @@ export async function POST(request: NextRequest) {
     if (!dbToken || dbToken.expiresAt < new Date()) {
       // If expired or not found, clean up if dbToken exists
       if (dbToken) {
+        // Best-effort cleanup: if the DB delete fails, the stale token will
+        // simply be rejected on the next refresh attempt.
         await prisma.refreshToken.delete({ where: { id: dbToken.id } }).catch(() => {});
       }
       return NextResponse.json({ error: "Refresh token revoked or expired" }, { status: 401 });
@@ -63,7 +65,8 @@ export async function POST(request: NextRequest) {
     expiresAt.setDate(expiresAt.getDate() + REFRESH_TOKEN_DAYS);
 
     await prisma.$transaction(async (tx) => {
-      await tx.refreshToken.delete({ where: { id: dbToken.id } });
+      // Delete ALL refresh tokens for this user to avoid unique constraint conflicts
+      await tx.refreshToken.deleteMany({ where: { userId: user.id } });
       await tx.refreshToken.create({
         data: {
           userId: user.id,
@@ -98,7 +101,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Refresh token error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

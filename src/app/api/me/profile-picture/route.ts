@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, handleApiError } from "@/lib/rbac";
 import { logAudit } from "@/lib/audit";
-import { writeFile, unlink } from "fs/promises";
+import { writeFile } from "fs/promises";
 import path from "path";
 
 /**
@@ -14,6 +14,8 @@ export async function POST(request: NextRequest) {
     const user = withAuth(request);
 
     const formData = await request.formData();
+    // formData.get returns FormDataEntryValue | null; cast to File | null since
+    // we only accept file uploads and validate the type below.
     const file = formData.get("file") as File | null;
 
     if (!file) {

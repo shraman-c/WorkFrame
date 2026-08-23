@@ -77,15 +77,15 @@ export default function EmployeeDetailPage() {
     } finally { setSaving(false); }
   }
 
-  if (loading) return <div className="min-h-screen bg-surface-base"><Navbar /><LoadingSpinner /></div>;
-  if (!employee) return <div className="min-h-screen bg-surface-base"><Navbar /><div className="max-w-4xl mx-auto p-8 text-center text-foreground-muted">Employee not found.</div></div>;
+  if (loading) return <div className="min-h-screen"><Navbar /><LoadingSpinner /></div>;
+  if (!employee) return <div className="min-h-screen"><Navbar /><div className="max-w-4xl mx-auto p-8 text-center text-foreground-muted">Employee not found.</div></div>;
 
   const initials = (employee.profile?.fullName || employee.email)[0]?.toUpperCase() || "?";
   const isOwner = user?.id === employee.id;
   const canEdit = user?.role === "ADMIN" || isOwner;
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header: avatar + name + details */}
@@ -195,7 +195,7 @@ export default function EmployeeDetailPage() {
             </div>
             {editing && (
               <div className="border-t border-surface-border mt-6 pt-4 flex gap-3">
-                <button onClick={handleSave} disabled={saving} className="btn-primary disabled:opacity-50 text-sm">{saving ? "Saving..." : "Save Changes"}</button>
+                <button onClick={handleSave} disabled={saving} className="btn-primary text-sm">{saving ? "Saving..." : "Save Changes"}</button>
                 <button onClick={() => { setEditing(false); setMessage(null); setFullName(employee.profile?.fullName || ""); setPhone(employee.profile?.phone || ""); setAddress(employee.profile?.address || ""); setJobTitle(employee.profile?.jobTitle || ""); setDepartment(employee.profile?.department || ""); setProfilePictureUrl(employee.profile?.profilePictureUrl || ""); }} className="px-4 py-2 text-sm font-medium text-foreground-secondary border border-surface-border hover:bg-surface-overlay rounded">Cancel</button>
               </div>
             )}

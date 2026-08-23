@@ -3,6 +3,9 @@ type CacheEntry<T> = {
   expiresAt: number;
 };
 
+// Cache values are typed at the call site via getCached<T> / setCached<T>.
+// The internal Map stores `any` because TypeScript generics are erased at runtime;
+// the public API enforces type safety through the generic parameters.
 const cacheMap = new Map<string, CacheEntry<any>>();
 
 /**

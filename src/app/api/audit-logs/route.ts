@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAdmin, handleApiError } from "@/lib/rbac";
 import { auditLogQuerySchema } from "@/lib/validation";
+import type { Prisma } from "@prisma/client";
 
 export async function GET(request: NextRequest) {
   try {
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
     const { page, pageSize, actorId, targetEntity, startDate, endDate, search } = parsed.data;
     const skip = (page - 1) * pageSize;
 
-    const andConditions: any[] = [];
+    const andConditions: Prisma.AuditLogWhereInput[] = [];
 
     if (actorId) {
       andConditions.push({ actorId });
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
       });
     }
     if (startDate || endDate) {
-      const timeFilter: any = {};
+      const timeFilter: Prisma.DateTimeFilter = {};
       if (startDate) timeFilter.gte = new Date(startDate);
       if (endDate) {
         const end = new Date(endDate);

@@ -170,7 +170,7 @@ export default function AttendancePage() {
   const totalWorking = records.length;
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Date/Month navigation + view toggle */}
@@ -284,7 +284,7 @@ export default function AttendancePage() {
                       extraHours = hours > 8 ? "+" + (hours - 8).toFixed(1) + "h" : "---";
                     }
                     return (
-                      <tr key={rec.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay/50">
+                      <tr key={rec.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay bg-surface-raised">
                         <td className="px-4 py-3 text-foreground-secondary font-mono">
                           {new Date(rec.date).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
                         </td>
@@ -317,14 +317,14 @@ export default function AttendancePage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page === pagination.totalPages}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Next
               </button>
@@ -337,13 +337,13 @@ export default function AttendancePage() {
       {!isAdmin && (
         <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
           {!hasCheckedIn ? (
-            <button onClick={handleCheckIn} disabled={actionLoading} className="px-6 py-3 bg-accent text-white font-semibold text-sm rounded-full shadow-lg hover:bg-accent-hover transition-all disabled:opacity-50">
+            <button onClick={handleCheckIn} disabled={actionLoading} className="px-6 py-3 bg-accent text-white font-semibold text-sm rounded-full shadow-lg hover:bg-accent-hover transition-all">
               {actionLoading ? "..." : "Check In"}
             </button>
           ) : !hasCheckedOut ? (
             <div className="flex items-center gap-3 bg-surface-raised border border-surface-border rounded-full shadow-lg px-4 py-2">
               <span className="text-xs text-foreground-muted font-mono">Since {new Date(todayRecord!.checkIn!).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}</span>
-              <button onClick={handleCheckOut} disabled={actionLoading} className="px-5 py-2 bg-danger text-white font-semibold text-xs rounded-full hover:bg-red-600 transition-all disabled:opacity-50">
+              <button onClick={handleCheckOut} disabled={actionLoading} className="px-5 py-2 bg-danger text-white font-semibold text-xs rounded-full hover:bg-red-600 transition-all">
                 {actionLoading ? "..." : "Check Out"}
               </button>
             </div>

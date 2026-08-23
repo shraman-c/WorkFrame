@@ -41,8 +41,13 @@ export const signinSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
-export const verifyEmailSchema = z.object({
-  token: z.string().min(1, "Verification token is required"),
+export const sendOtpSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+});
+
+export const verifyOtpSchema = z.object({
+  userId: z.string().min(1, "User ID is required"),
+  otp: z.string().length(6, "OTP must be exactly 6 digits").regex(/^\d{6}$/, "OTP must contain only digits"),
 });
 
 // ─── Profile ─────────────────────────────────────────────────────────────────

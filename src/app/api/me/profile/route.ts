@@ -2,12 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, handleApiError } from "@/lib/rbac";
 import { employeeProfileUpdateSchema } from "@/lib/validation";
-import { logAudit } from "@/lib/audit";
 
 /**
  * GET /api/me/profile
- * Returns the authenticated user's profile, job details, and documents.
- * Salary is excluded until Stage 3.
+ * Returns the authenticated user's full profile, job details, documents, and role.
  */
 export async function GET(request: NextRequest) {
   try {
@@ -57,7 +55,8 @@ export async function GET(request: NextRequest) {
 
 /**
  * PATCH /api/me/profile
- * Employee can edit only: phone, address, profilePictureUrl.
+ * Employee can edit: fullName, phone, address, jobTitle, department, profilePictureUrl, about, interests.
+ * Fields not in the schema are ignored (role, email, loginId, etc.).
  */
 export async function PATCH(request: NextRequest) {
   try {

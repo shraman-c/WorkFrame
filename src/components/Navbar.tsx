@@ -32,9 +32,6 @@ export default function Navbar() {
     ...(user.role === "ADMIN" ? [{ href: "/employees", label: "Employees" }, { href: "/audit-logs", label: "Activity Log" }] : []),
   ];
 
-  // Determine active tab based on pathname
-  const activeTab = allowedTabs.find((t) => pathname.startsWith(t.href))?.href || "";
-
   // User initials for avatar
   const initials = (user.email || "U")[0].toUpperCase();
 

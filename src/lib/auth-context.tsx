@@ -29,8 +29,9 @@ interface AuthContextType {
     phone?: string;
     password: string;
     confirmPassword: string;
-  }) => Promise<string>;
-  verifyEmail: (token: string) => Promise<void>;
+  }) => Promise<{ message: string; userId: string; loginId: string }>;
+  sendOtp: (userId: string) => Promise<string>;
+  verifyOtp: (userId: string, otp: string) => Promise<string>;
   signout: () => Promise<void>;
 }
 
@@ -57,7 +58,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             return;
           }
-        } catch {}
+        } catch {
+          // Malformed or expired token — fall through to silent refresh
+        }
       }
 
       // Attempt silent refresh to restore session
@@ -106,17 +109,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Signup failed");
+    return { message: data.message, userId: data.userId, loginId: data.loginId };
+  }, []);
+
+  const sendOtp = useCallback(async (userId: string) => {
+    const res = await fetch("/api/auth/send-otp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to send OTP");
     return data.message as string;
   }, []);
 
-  const verifyEmail = useCallback(async (token: string) => {
-    const res = await fetch("/api/auth/verify-email", {
+  const verifyOtp = useCallback(async (userId: string, otp: string) => {
+    const res = await fetch("/api/auth/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
+      body: JSON.stringify({ userId, otp }),
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Verification failed");
+    if (!res.ok) throw new Error(data.error || "OTP verification failed");
+    return data.message as string;
   }, []);
 
   const signout = useCallback(async () => {
@@ -130,7 +145,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signin, signup, verifyEmail, signout }}>
+    <AuthContext.Provider value={{ user, loading, signin, signup, sendOtp, verifyOtp, signout }}>
       {children}
     </AuthContext.Provider>
   );

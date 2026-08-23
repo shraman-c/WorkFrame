@@ -20,6 +20,8 @@ export async function POST(request: NextRequest) {
     const user = withAuth(request);
 
     const formData = await request.formData();
+    // formData.get returns FormDataEntryValue | null; cast to File | null since
+    // we only accept file uploads and validate the type below.
     const file = formData.get("file") as File | null;
     const docType = formData.get("type") as string | null;
 

@@ -86,7 +86,7 @@ export default function AuditLogsPage() {
 
   if (authLoading || !user || user.role !== "ADMIN") {
     return (
-      <div className="min-h-screen bg-surface-base flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <LoadingSpinner />
       </div>
     );
@@ -100,7 +100,7 @@ export default function AuditLogsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
@@ -116,7 +116,7 @@ export default function AuditLogsPage() {
           <button
             onClick={() => fetchLogs()}
             disabled={loading}
-            className="self-start sm:self-auto text-xs text-foreground-muted hover:text-foreground-primary border border-surface-border px-3 py-1.5 rounded hover:bg-surface-overlay transition-colors disabled:opacity-50"
+            className="self-start sm:self-auto text-xs text-foreground-muted hover:text-foreground-primary border border-surface-border px-3 py-1.5 rounded hover:bg-surface-overlay transition-colors"
           >
             {loading ? "Refreshing..." : "Refresh"}
           </button>
@@ -204,7 +204,7 @@ export default function AuditLogsPage() {
                   logs.map((log) => (
                     <tr
                       key={log.id}
-                      className="border-b border-surface-border last:border-0 hover:bg-surface-overlay/50 transition-colors"
+                      className="border-b border-surface-border last:border-0 hover:bg-surface-overlay transition-colors bg-surface-raised"
                     >
                       <td className="px-4 py-3 text-foreground-secondary font-mono">
                         {new Date(log.timestamp).toLocaleString("en-US", {
@@ -253,14 +253,14 @@ export default function AuditLogsPage() {
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Previous
               </button>
               <button
                 onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
                 disabled={page === pagination.totalPages}
-                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
               >
                 Next
               </button>

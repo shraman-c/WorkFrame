@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthUser } from "@/lib/auth";
+import { handleApiError } from "@/lib/rbac";
 
 /**
  * POST /api/auth/signout
@@ -30,7 +31,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Signout error:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    return handleApiError(error);
   }
 }

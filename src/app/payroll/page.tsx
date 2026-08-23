@@ -125,7 +125,7 @@ function EmployeePayroll() {
           <button
             onClick={() => downloadPayslip()}
             disabled={downloading}
-            className="btn-primary disabled:opacity-50 text-xs"
+            className="btn-primary text-xs"
           >
             {downloading ? "Generating..." : "Download Payslip"}
           </button>
@@ -194,7 +194,7 @@ function EmployeePayroll() {
               </thead>
               <tbody>
                 {data.history.map((s) => (
-                  <tr key={s.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay">
+                  <tr key={s.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay bg-surface-raised">
                     <td className="py-2.5 font-mono text-foreground-secondary">{formatDate(s.effectiveDate)}</td>
                     <td className="py-2.5 text-foreground-primary">{formatCurrency(s.baseSalary)}</td>
                     <td className="py-2.5 text-success">
@@ -208,7 +208,7 @@ function EmployeePayroll() {
                       <button
                         onClick={() => downloadPayslip(s.id)}
                         disabled={downloading}
-                        className="label-tactical text-accent hover:text-accent-hover disabled:opacity-50"
+                        className="label-tactical text-accent hover:text-accent-hover"
                       >
                         Payslip
                       </button>
@@ -461,7 +461,7 @@ function AdminPayroll() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50 text-xs">
+            <button type="submit" disabled={submitting} className="btn-primary text-xs">
               {submitting ? "Creating..." : "Create Salary Structure"}
             </button>
             <button type="button" onClick={() => { setShowForm(false); setMessage(null); }} className="btn-ghost text-xs">
@@ -518,7 +518,7 @@ function AdminPayroll() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button type="submit" disabled={editSubmitting} className="btn-primary disabled:opacity-50 text-xs">
+            <button type="submit" disabled={editSubmitting} className="btn-primary text-xs">
               {editSubmitting ? "Updating..." : "Update Salary"}
             </button>
             <button type="button" onClick={cancelEdit} className="btn-ghost text-xs">
@@ -558,7 +558,7 @@ function AdminPayroll() {
               </thead>
               <tbody>
                 {salaries.map((s) => (
-                  <tr key={s.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay">
+                  <tr key={s.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay bg-surface-raised">
                     <td className="py-2.5 text-foreground-primary font-medium">
                       {s.user?.profile?.fullName || "---"}
                     </td>
@@ -613,11 +613,11 @@ function AdminPayroll() {
 export default function PayrollPage() {
   const { user, loading: authLoading } = useAuth();
 
-  if (authLoading) return <div className="min-h-screen bg-surface-base"><Navbar /><LoadingSpinner /></div>;
+  if (authLoading) return <div className="min-h-screen"><Navbar /><LoadingSpinner /></div>;
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-6">

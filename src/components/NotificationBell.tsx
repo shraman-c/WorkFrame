@@ -29,7 +29,7 @@ export default function NotificationBell() {
       );
       setUnreadCount(data.unreadCount);
     } catch {
-      /* best-effort */
+      // Best-effort: network errors during polling should not crash the bell
     }
   }, [user]);
 
@@ -50,7 +50,9 @@ export default function NotificationBell() {
         setNotifications(data.notifications);
         setUnreadCount(data.unreadCount);
       })
-      .catch(() => {})
+      .catch(() => {
+        // Best-effort: network errors when opening dropdown should not crash the UI
+      })
       .finally(() => setLoading(false));
   }, [open, user]);
 
@@ -73,7 +75,7 @@ export default function NotificationBell() {
       );
       setUnreadCount((prev) => Math.max(0, prev - 1));
     } catch {
-      /* best-effort */
+      // Best-effort: failing to mark read should not crash the UI
     }
   }
 
@@ -83,7 +85,7 @@ export default function NotificationBell() {
       setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
       setUnreadCount(0);
     } catch {
-      /* best-effort */
+      // Best-effort: failing to mark all read should not crash the UI
     }
   }
 

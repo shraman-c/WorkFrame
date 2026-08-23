@@ -169,7 +169,7 @@ function EmployeeTimeOff() {
               </div>
               <div className="flex justify-end gap-3 pt-2">
                 <button type="button" onClick={() => setShowModal(false)} className="px-4 py-2 text-sm font-medium text-foreground-secondary border border-surface-border hover:bg-surface-overlay rounded">Discard</button>
-                <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">{submitting ? "Submitting..." : "Submit"}</button>
+                <button type="submit" disabled={submitting} className="btn-primary">{submitting ? "Submitting..." : "Submit"}</button>
               </div>
             </form>
           </div>
@@ -272,7 +272,7 @@ function AdminTimeOff() {
             </span>
           )}
         </div>
-        <button onClick={() => fetchRequests(false)} disabled={loading} className="text-xs text-foreground-muted hover:text-foreground-primary border border-surface-border px-3 py-1.5 rounded hover:bg-surface-overlay disabled:opacity-50">
+        <button onClick={() => fetchRequests(false)} disabled={loading} className="text-xs text-foreground-muted hover:text-foreground-primary border border-surface-border px-3 py-1.5 rounded hover:bg-surface-overlay">
           {loading ? "Loading..." : "Refresh"}
         </button>
       </div>
@@ -367,7 +367,7 @@ function AdminTimeOff() {
                 </td></tr>
               ) : (
                 requests.map((lr) => (
-                  <tr key={lr.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay/50 transition-colors">
+                  <tr key={lr.id} className="border-b border-surface-border last:border-0 hover:bg-surface-overlay transition-colors bg-surface-raised">
                     <td className="px-4 py-3">
                       <div className="font-medium text-foreground-primary">{lr.user?.profile?.fullName || "---"}</div>
                       <div className="text-[10px] text-foreground-muted font-mono">{lr.user?.employeeId || ""}</div>
@@ -424,14 +424,14 @@ function AdminTimeOff() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
             >
               Previous
             </button>
             <button
               onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
               disabled={page === pagination.totalPages}
-              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay transition-all font-medium text-foreground-secondary"
             >
               Next
             </button>
@@ -482,7 +482,7 @@ function AdminTimeOff() {
               <button
                 onClick={handleDecision}
                 disabled={deciding}
-                className={`px-5 py-2 text-xs font-semibold text-white rounded disabled:opacity-50 transition-colors ${
+                className={`px-5 py-2 text-xs font-semibold text-white rounded transition-colors ${
                   decisionAction === "APPROVED" ? "bg-success hover:bg-green-600" : "bg-danger hover:bg-red-600"
                 }`}
               >
@@ -498,10 +498,10 @@ function AdminTimeOff() {
 
 export default function TimeOffPage() {
   const { user, loading: authLoading } = useAuth();
-  if (authLoading) return <div className="min-h-screen bg-surface-base"><Navbar /><LoadingSpinner /></div>;
+  if (authLoading) return <div className="min-h-screen"><Navbar /><LoadingSpinner /></div>;
   if (!user) return null;
   return (
-    <div className="min-h-screen bg-surface-base">
+    <div className="min-h-screen relative z-10">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {user.role === "ADMIN" ? <AdminTimeOff /> : <EmployeeTimeOff />}

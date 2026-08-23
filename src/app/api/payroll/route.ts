@@ -52,9 +52,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ salaries });
     }
 
-    // All employees — return current (latest) salary per employee
-    const allSalaries = await prisma.salaryStructure.findMany({
-      orderBy: { effectiveDate: "desc" },
+    // All employees — return current (latest) salary per employee.
+    // Use $queryRaw to get the max effectiveDate per employee, then fetch
+    // only those records. This avoids loading ALL historical salary records.
+    // NOTE: table/column names are from the Prisma-generated schema;
+    // update if the schema changes.
+    const latestPerEmployee = await prisma.$queryRaw<{ employeeId: string; maxDate: Date }[]>`
+      SELECT "employeeId", MAX("effectiveDate") AS "maxDate"
+      FROM "SalaryStructure"
+      GROUP BY "employeeId"
+    `;
+
+    if (latestPerEmployee.length === 0) {
+      return NextResponse.json({ salaries: [] });
+    }
+
+    // Fetch the full salary records for each employee's latest effectiveDate.
+    const rawResults = await prisma.salaryStructure.findMany({
+      where: {
+        OR: latestPerEmployee.map((row) => ({
+          employeeId: row.employeeId,
+          effectiveDate: row.maxDate,
+        })),
+      },
+      orderBy: [{ effectiveDate: "desc" }, { employeeId: "asc" }],
       select: {
         id: true,
         employeeId: true,
@@ -73,9 +94,10 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Deduplicate — keep only the latest per employee
+    // Deduplicate: if two records share the same employeeId + effectiveDate,
+    // keep only the first (most recently created).
     const seen = new Set<string>();
-    const currentSalaries = allSalaries.filter((s) => {
+    const currentSalaries = rawResults.filter((s) => {
       if (seen.has(s.employeeId)) return false;
       seen.add(s.employeeId);
       return true;

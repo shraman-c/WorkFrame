@@ -92,9 +92,61 @@
 
   /* Input field */
   .input-field {
-    @apply w-full px-3 py-2 text-sm bg-surface-raised border border-surface-border
+    @apply w-full px-3 py-2 text-sm bg-[#121212] border border-surface-border
            text-foreground-primary placeholder:text-foreground-muted
            focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30
-           transition-colors duration-100;
+           transition-colors duration-100 rounded;
   }
+}
+
+/* ─── Liquid Glass Effect ──────────────────────────────────────────────── */
+
+.liquid-glass {
+  background: #18181b;
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.liquid-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid transparent;
+  background: linear-gradient(#18181b, #18181b) padding-box,
+              linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04), rgba(255,255,255,0.12)) border-box;
+  pointer-events: none;
+}
+
+/* ─── Cinematic fade-rise animations ───────────────────────────────────── */
+
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-rise {
+  animation: fade-rise 0.8s ease-out both;
+}
+
+.animate-fade-rise-delay {
+  animation: fade-rise 0.8s ease-out 0.2s both;
+}
+
+.animate-fade-rise-delay-2 {
+  animation: fade-rise 0.8s ease-out 0.4s both;
+}
+
+/* ─── Legacy fadeOut (kept for TimeOfDayBackground) ─────────────────────── */
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }

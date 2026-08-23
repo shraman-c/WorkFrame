@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAdmin, handleApiError } from "@/lib/rbac";
+import type { Prisma } from "@prisma/client";
 
 /**
  * GET /api/employees
@@ -18,11 +19,11 @@ export async function GET(request: NextRequest) {
     const pageSize = parseInt(searchParams.get("pageSize") || "20", 10);
     const skip = (page - 1) * pageSize;
 
-    const where: any = {
+    const where: Prisma.UserWhereInput = {
       role: "EMPLOYEE",
     };
 
-    const andConditions: any[] = [];
+    const andConditions: Prisma.UserWhereInput[] = [];
 
     if (department) {
       andConditions.push({

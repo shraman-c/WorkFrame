@@ -3,12 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { withAdmin, handleApiError } from "@/lib/rbac";
 import { getCached, setCached } from "@/lib/cache";
 
+interface DashboardStats {
+  totalEmployees: number;
+  presentToday: number;
+  leaveToday: number;
+  pendingLeaves: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     withAdmin(request);
 
     const cacheKey = "dashboard:admin:stats";
-    let stats = getCached<any>(cacheKey);
+    let stats = getCached<DashboardStats>(cacheKey);
 
     if (stats === null) {
       const today = new Date();

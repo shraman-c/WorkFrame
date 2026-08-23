@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAdmin, handleApiError } from "@/lib/rbac";
+import type { Prisma } from "@prisma/client";
 
 /**
  * GET /api/attendance?employeeId=xxx&startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
@@ -34,7 +35,7 @@ export async function GET(request: NextRequest) {
     startDate.setUTCHours(0, 0, 0, 0);
     endDate.setUTCHours(23, 59, 59, 999);
 
-    const andConditions: any[] = [
+    const andConditions: Prisma.AttendanceRecordWhereInput[] = [
       { date: { gte: startDate, lte: endDate } },
     ];
 

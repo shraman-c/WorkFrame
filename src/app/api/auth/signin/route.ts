@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { signinSchema } from "@/lib/validation";
 import { signAccessToken, signRefreshToken } from "@/lib/jwt";
 import { isRateLimited } from "@/lib/rate-limit";
+import { handleApiError } from "@/lib/rbac";
 
 const REFRESH_TOKEN_DAYS = 7;
 
@@ -122,10 +123,6 @@ export async function POST(request: NextRequest) {
 
     return response;
   } catch (error) {
-    console.error("Signin error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return handleApiError(error);
   }
 }
