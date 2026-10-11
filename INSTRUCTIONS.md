@@ -72,6 +72,20 @@ WorkFrame is a full-stack Human Resource Management System built with Next.js, P
 - Notification preferences per user
 
 ---
+## Tech Stack
+
+- Frontend: Next.js, React, Tailwind CSS
+- Backend: Next.js API routes
+- Database: PostgreSQL with Prisma ORM
+- Authentication: JWT + bcryptjs
+- Email: Nodemailer-compatible SMTP
+
+## Project Structure
+
+- app/ contains the main Next.js pages and API routes
+- components/ contains reusable UI components
+- lib/ contains authentication, Prisma, validation, and notification helpers
+- prisma/ contains the database schema and seed data
 
 ## Prerequisites
 
