@@ -83,6 +83,10 @@ export const leaveDecisionSchema = z.object({
 export const leaveQuerySchema = z.object({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional(),
   employeeId: z.string().optional(),
+  department: z.string().optional(),
+  search: z.string().optional(),
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).default(20),
 });
 
 // ─── Payroll ─────────────────────────────────────────────────────────────────
@@ -111,4 +115,15 @@ export const payrollQuerySchema = z.object({
 export const notificationQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
   pageSize: z.coerce.number().int().positive().max(50).default(20),
+});
+// ─── Audit Logs ──────────────────────────────────────────────────────────────
+
+export const auditLogQuerySchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  pageSize: z.coerce.number().int().positive().max(50).default(20),
+  actorId: z.string().optional(),
+  targetEntity: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  search: z.string().optional(),
 });

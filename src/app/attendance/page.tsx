@@ -48,12 +48,37 @@ export default function AttendancePage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<"day" | "date">("day");
   const [searchEmployee, setSearchEmployee] = useState("");
+  const [department, setDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+
+  const selectedDateStr = selectedDate.toISOString().split("T")[0];
 
   const fetchRecords = useCallback(async () => {
+    setLoading(true);
     try {
       if (isAdmin) {
-        const data = await apiFetch<{ records: AttendanceRecord[] }>("/api/attendance");
+        const params = new URLSearchParams();
+        params.append("page", page.toString());
+        params.append("pageSize", "20");
+        if (searchEmployee) params.append("search", searchEmployee);
+        if (department) params.append("department", department);
+        
+        if (viewMode === "day") {
+          params.append("startDate", selectedDateStr);
+          params.append("endDate", selectedDateStr);
+        } else {
+          const start = new Date(selectedDate);
+          start.setDate(start.getDate() - 6);
+          params.append("startDate", start.toISOString().split("T")[0]);
+          params.append("endDate", selectedDateStr);
+        }
+
+        const data = await apiFetch<{ records: AttendanceRecord[]; pagination: { total: number; totalPages: number } }>(
+          `/api/attendance?${params.toString()}`
+        );
         setRecords(data.records);
+        setPagination({ total: data.pagination.total, totalPages: data.pagination.totalPages });
       } else {
         const data = await apiFetch<{ records: AttendanceRecord[] }>("/api/attendance/me?range=weekly");
         setRecords(data.records);
@@ -62,9 +87,14 @@ export default function AttendancePage() {
         setTodayRecord(todayRec || null);
       }
     } catch { /* handle silently */ } finally { setLoading(false); }
-  }, [isAdmin]);
+  }, [isAdmin, page, searchEmployee, department, viewMode, selectedDateStr, selectedDate]);
 
   useEffect(() => { fetchRecords(); }, [fetchRecords]);
+
+  // Reset page when date or mode changes
+  useEffect(() => {
+    setPage(1);
+  }, [selectedDateStr, viewMode]);
 
   async function handleCheckIn() {
     setActionLoading(true);
@@ -101,18 +131,7 @@ export default function AttendancePage() {
     setSelectedDate(d);
   }
 
-  const selectedDateStr = selectedDate.toISOString().split("T")[0];
-
-  const filteredDayRecords = records.filter((r) => {
-    if (!r.date.startsWith(selectedDateStr)) return false;
-    if (!isAdmin || !searchEmployee) return true;
-    const q = searchEmployee.toLowerCase();
-    return (
-      r.user?.profile?.fullName?.toLowerCase().includes(q) ||
-      r.user?.employeeId?.toLowerCase().includes(q) ||
-      r.employeeId?.toLowerCase().includes(q)
-    );
-  });
+  const filteredDayRecords = records;
 
   const presentCount = records.filter((r) => r.status === "PRESENT").length;
   const leaveCount = records.filter((r) => r.status === "LEAVE").length;
@@ -146,10 +165,34 @@ export default function AttendancePage() {
           </div>
         )}
 
-        {/* Admin: search */}
+        {/* Admin: search & department filter */}
         {isAdmin && (
-          <div className="mb-4">
-            <input type="text" placeholder="Search employee..." value={searchEmployee} onChange={(e) => setSearchEmployee(e.target.value)} className="input-field text-sm max-w-xs" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-4">
+            <div className="flex-1 max-w-xs">
+              <input
+                type="text"
+                placeholder="Search employee by name/ID..."
+                value={searchEmployee}
+                onChange={(e) => { setSearchEmployee(e.target.value); setPage(1); }}
+                className="input-field text-sm"
+              />
+            </div>
+            <div className="w-full sm:w-48">
+              <select
+                value={department}
+                onChange={(e) => { setDepartment(e.target.value); setPage(1); }}
+                className="input-field text-sm"
+              >
+                <option value="">All Departments</option>
+                <option value="Engineering">Engineering</option>
+                <option value="Product">Product</option>
+                <option value="Design">Design</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Sales">Sales</option>
+                <option value="Finance">Finance</option>
+                <option value="Operations">Operations</option>
+              </select>
+            </div>
           </div>
         )}
 
@@ -211,6 +254,31 @@ export default function AttendancePage() {
             </table>
           </div>
         </div>
+
+        {/* Pagination */}
+        {isAdmin && !loading && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-xs text-foreground-muted">
+              Showing page {page} of {pagination.totalPages} ({pagination.total} records)
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                disabled={page === pagination.totalPages}
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Floating Check In/Out pill */}

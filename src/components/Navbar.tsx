@@ -32,8 +32,15 @@ export default function Navbar() {
 
   if (!user) return null;
 
+  const allowedTabs = [
+    { href: "/employees", label: "Employees" },
+    { href: "/attendance", label: "Attendance" },
+    { href: "/time-off", label: "Time Off" },
+    ...(user.role === "ADMIN" ? [{ href: "/audit-logs", label: "Activity Log" }] : []),
+  ];
+
   // Determine active tab based on pathname
-  const activeTab = tabs.find((t) => pathname.startsWith(t.href))?.href || "";
+  const activeTab = allowedTabs.find((t) => pathname.startsWith(t.href))?.href || "";
 
   // User initials for avatar
   const initials = (user.email || "U")[0].toUpperCase();
@@ -57,7 +64,7 @@ export default function Navbar() {
 
           {/* Horizontal tabs — center */}
           <div className="hidden md:flex items-center gap-1">
-            {tabs.map((tab) => {
+            {allowedTabs.map((tab) => {
               const isActive = pathname.startsWith(tab.href);
               return (
                 <Link
@@ -84,6 +91,9 @@ export default function Navbar() {
               <button
                 onClick={() => setDropdownOpen((o) => !o)}
                 className="flex items-center gap-2 group"
+                aria-expanded={dropdownOpen}
+                aria-haspopup="true"
+                aria-label="User menu"
               >
                 {/* Status dot */}
                 <span className="w-2 h-2 rounded-full bg-success" />
@@ -117,7 +127,7 @@ export default function Navbar() {
 
         {/* Mobile nav */}
         <div className="md:hidden flex gap-1 pb-2 overflow-x-auto">
-          {tabs.map((tab) => {
+          {allowedTabs.map((tab) => {
             const isActive = pathname.startsWith(tab.href);
             return (
               <Link

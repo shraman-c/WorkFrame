@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useAuth } from "@/lib/auth-context";
 import { apiFetch } from "@/lib/api-client";
@@ -17,33 +17,66 @@ interface Employee {
   onLeave?: boolean;
 }
 
+interface DashboardStats {
+  totalEmployees: number;
+  presentToday: number;
+  leaveToday: number;
+  pendingLeaves: number;
+}
+
 export default function EmployeesPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === "ADMIN";
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [department, setDepartment] = useState("");
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ total: 0, totalPages: 1 });
+
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      params.append("page", page.toString());
+      params.append("pageSize", "12");
+      if (search) params.append("search", search);
+      if (department) params.append("department", department);
+
+      const data = await apiFetch<{ users: Employee[]; pagination: { total: number; totalPages: number } }>(
+        `/api/employees?${params.toString()}`
+      );
+      setEmployees(data.users);
+      setPagination(data.pagination);
+    } catch {
+      /* handle silently */
+    } finally {
+      setLoading(false);
+    }
+  }, [page, search, department]);
+
+  const fetchStats = useCallback(async () => {
+    if (!isAdmin) return;
+    try {
+      const data = await apiFetch<DashboardStats>("/api/dashboard/stats");
+      setStats(data);
+    } catch {
+      /* handle silently */
+    }
+  }, [isAdmin]);
 
   useEffect(() => {
-    async function fetchEmployees() {
-      try {
-        const data = await apiFetch<{ users: Employee[] }>("/api/employees");
-        setEmployees(data.users);
-      } catch { /* handle silently */ } finally { setLoading(false); }
-    }
     fetchEmployees();
-  }, []);
+  }, [fetchEmployees]);
 
-  const filtered = employees.filter((emp) => {
-    const q = search.toLowerCase();
-    return (
-      !q ||
-      emp.profile?.fullName?.toLowerCase().includes(q) ||
-      emp.employeeId.toLowerCase().includes(q) ||
-      emp.email.toLowerCase().includes(q) ||
-      emp.profile?.department?.toLowerCase().includes(q)
-    );
-  });
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const handleFilterChange = () => {
+    setPage(1);
+  };
 
   function getStatusDot(emp: Employee) {
     if (emp.onLeave) return "bg-info"; // airplane icon placeholder — blue dot
@@ -55,12 +88,34 @@ export default function EmployeesPage() {
     <div className="min-h-screen bg-surface-base">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header row: NEW button + search */}
-        <div className="flex items-center gap-4 mb-8">
+        {/* Admin Dashboard Stats Row */}
+        {isAdmin && stats && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="card">
+              <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">Total Employees</p>
+              <p className="font-heading text-2xl font-bold text-foreground-primary">{stats.totalEmployees}</p>
+            </div>
+            <div className="card">
+              <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">Present Today</p>
+              <p className="font-heading text-2xl font-bold text-foreground-primary">{stats.presentToday}</p>
+            </div>
+            <div className="card">
+              <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">On Leave Today</p>
+              <p className="font-heading text-2xl font-bold text-foreground-primary">{stats.leaveToday}</p>
+            </div>
+            <div className="card">
+              <p className="text-[10px] text-foreground-muted uppercase tracking-wider mb-1">Pending Leave Requests</p>
+              <p className="font-heading text-2xl font-bold text-foreground-primary">{stats.pendingLeaves}</p>
+            </div>
+          </div>
+        )}
+
+        {/* Header row: NEW button + search + department */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8">
           {isAdmin && (
             <Link
               href="/employees/new"
-              className="btn-primary text-sm px-5 py-2 shrink-0"
+              className="btn-primary text-sm px-5 py-2 shrink-0 text-center"
             >
               NEW
             </Link>
@@ -68,21 +123,37 @@ export default function EmployeesPage() {
           <div className="flex-1 max-w-xs">
             <input
               type="text"
-              placeholder="Search employees..."
+              placeholder="Search employees by name/ID..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => { setSearch(e.target.value); handleFilterChange(); }}
               className="input-field text-sm"
             />
+          </div>
+          <div className="w-full sm:w-48">
+            <select
+              value={department}
+              onChange={(e) => { setDepartment(e.target.value); handleFilterChange(); }}
+              className="input-field text-sm"
+            >
+              <option value="">All Departments</option>
+              <option value="Engineering">Engineering</option>
+              <option value="Product">Product</option>
+              <option value="Design">Design</option>
+              <option value="Marketing">Marketing</option>
+              <option value="Sales">Sales</option>
+              <option value="Finance">Finance</option>
+              <option value="Operations">Operations</option>
+            </select>
           </div>
         </div>
 
         {loading ? (
           <LoadingSpinner />
-        ) : filtered.length === 0 ? (
+        ) : employees.length === 0 ? (
           <p className="text-sm text-foreground-muted">No employees found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filtered.map((emp) => (
+            {employees.map((emp) => (
               <Link
                 key={emp.id}
                 href={`/employees/${emp.id}`}
@@ -125,6 +196,31 @@ export default function EmployeesPage() {
                 </div>
               </Link>
             ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {!loading && pagination.totalPages > 1 && (
+          <div className="flex items-center justify-between mt-8 border-t border-surface-border pt-6">
+            <span className="text-xs text-foreground-muted">
+              Showing page {page} of {pagination.totalPages} ({pagination.total} employees)
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(pagination.totalPages, p + 1))}
+                disabled={page === pagination.totalPages}
+                className="px-3 py-1.5 border border-surface-border text-xs rounded hover:bg-surface-overlay disabled:opacity-40 transition-all font-medium text-foreground-secondary"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>

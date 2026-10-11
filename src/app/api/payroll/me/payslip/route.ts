@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, withAdmin, handleApiError } from "@/lib/rbac";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { logAudit } from "@/lib/audit";
+import { isRateLimited } from "@/lib/rate-limit";
 
 /**
  * GET /api/payroll/me/payslip
@@ -13,6 +15,14 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 export async function GET(request: NextRequest) {
   try {
     const authedUser = withAuth(request);
+    
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    if (isRateLimited(`payslip:${authedUser.id}:${ip}`, 3, 60000)) {
+      return NextResponse.json(
+        { error: "Too many payslip download requests. Please try again later." },
+        { status: 429 }
+      );
+    }
     const { searchParams } = new URL(request.url);
     const salaryId = searchParams.get("salaryId");
     const targetEmployeeId = searchParams.get("employeeId");
@@ -56,6 +66,9 @@ export async function GET(request: NextRequest) {
     if (!salary) {
       return NextResponse.json({ error: "No salary record found" }, { status: 404 });
     }
+
+    // Log the download action
+    await logAudit(authedUser.id, "DOWNLOAD_PAYSLIP", "SalaryStructure", salary.id);
 
     // Generate PDF payslip
     const pdfDoc = await PDFDocument.create();

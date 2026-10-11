@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import type { NotificationType } from "@prisma/client";
+import { invalidateCache } from "./cache";
 
 /**
  * Creates an in-app notification for a user.
@@ -14,6 +15,8 @@ export async function createNotification(
     await prisma.notification.create({
       data: { userId, type, message },
     });
+    // Invalidate cached unread notifications count
+    invalidateCache(`notifications:unread:${userId}`);
   } catch (error) {
     console.error("Failed to create notification:", error);
   }

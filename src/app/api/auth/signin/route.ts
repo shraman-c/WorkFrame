@@ -3,11 +3,20 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { signinSchema } from "@/lib/validation";
 import { signAccessToken, signRefreshToken } from "@/lib/jwt";
+import { isRateLimited } from "@/lib/rate-limit";
 
 const REFRESH_TOKEN_DAYS = 7;
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    if (isRateLimited(`signin:${ip}`, 5, 60000)) {
+      return NextResponse.json(
+        { error: "Too many sign-in attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const parsed = signinSchema.safeParse(body);
 

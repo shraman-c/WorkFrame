@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { withAuth, handleApiError } from "@/lib/rbac";
 import { notificationQuerySchema } from "@/lib/validation";
+import { getCached, setCached } from "@/lib/cache";
 
 /**
  * GET /api/notifications/me?page=1&pageSize=20
@@ -22,7 +23,10 @@ export async function GET(request: NextRequest) {
 
     const skip = (page - 1) * pageSize;
 
-    const [notifications, total, unreadCount] = await Promise.all([
+    const cacheKey = `notifications:unread:${user.id}`;
+    let unreadCount = getCached<number>(cacheKey);
+
+    const [notifications, total] = await Promise.all([
       prisma.notification.findMany({
         where: { userId: user.id },
         orderBy: { createdAt: "desc" },
@@ -37,8 +41,12 @@ export async function GET(request: NextRequest) {
         },
       }),
       prisma.notification.count({ where: { userId: user.id } }),
-      prisma.notification.count({ where: { userId: user.id, isRead: false } }),
     ]);
+
+    if (unreadCount === null) {
+      unreadCount = await prisma.notification.count({ where: { userId: user.id, isRead: false } });
+      setCached(cacheKey, unreadCount, 15000); // Cache unread count for 15 seconds
+    }
 
     return NextResponse.json({
       notifications,

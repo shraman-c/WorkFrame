@@ -100,6 +100,7 @@ model AttendanceRecord {
   @@unique([employeeId, date])
   @@index([employeeId])
   @@index([date])
+  @@index([employeeId, date])
 }
 
 model LeaveRequest {
@@ -119,6 +120,7 @@ model LeaveRequest {
 
   @@index([employeeId])
   @@index([status])
+  @@index([employeeId, status])
 }
 
 model AuditLog {

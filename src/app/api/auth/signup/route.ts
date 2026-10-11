@@ -3,11 +3,20 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
 import { signupSchema } from "@/lib/validation";
+import { isRateLimited } from "@/lib/rate-limit";
 
 const SALT_ROUNDS = 12;
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers.get("x-forwarded-for") || "127.0.0.1";
+    if (isRateLimited(`signup:${ip}`, 5, 60000)) {
+      return NextResponse.json(
+        { error: "Too many sign-up attempts. Please try again later." },
+        { status: 429 }
+      );
+    }
+
     const body = await request.json();
     const parsed = signupSchema.safeParse(body);
 
